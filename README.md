@@ -1,10 +1,10 @@
-<h1 align="center">𝗣𝗔𝗧𝗥𝗢𝗡-𝗠𝗗 𝗕𝗢𝗧<br></h1>
+<h1 align="center">𝙆𝘼𝙔𝘼-𝙈𝘿 𝗕𝗢𝗧<br></h1>
 <p align="center">
-<img src="https://i.imgur.com/XnKn6H3.jpeg" height="300" />
+<img src="https://files.catbox.moe/aibh0u.jpeg" height="300" />
 </p>
 
 <p align="center">
-PATRON Multi Device is a automated whatsapp bot created by <a href="https://github.com/Itzpatron" target="_blank">Patron</a> using <a href="https://github.com/adiwajshing/Baileys" target="_blank">Baileys</a> and <a href="https://github.com/nodejs" target="_blank">Nodejs And cheems v8</a>. Dont forget to give a star bro.
+KAYA Multi Device is a automated whatsapp bot created by <a href="https://github.com/Kaya2005" target="_blank">Patron</a> using <a href="https://github.com/adiwajshing/Baileys" target="_blank">Baileys</a> and <a href="https://github.com/nodejs" target="_blank">Nodejs And cheems v8</a>. Dont forget to give a star bro.
 </p>
 
 <p align="center">
@@ -15,25 +15,25 @@ PATRON Multi Device is a automated whatsapp bot created by <a href="https://gith
 
 # ```Bot Info```
 <p align="center">
-<a href="https://github.com/Itzpatron/followers"><img title="Followers" src="https://img.shields.io/github/followers/Itzpatron?color=red&style=flat-square"></a>
-<a href="https://github.com/Itzpatron/PATRON-MD/stargazers/"><img title="Stars" src="https://img.shields.io/github/stars/Itzpatron/PATRON-MD?color=blue&style=flat-square"></a>
-<a href="https://github.com/Itzpatron/PATRON-MD/network/members"><img title="Forks" src="https://img.shields.io/github/forks/Itzpatron/PATRON-MD?color=red&style=flat-square"></a>
-<a href="https://github.com/Itzpatron/PATRON-MD/watchers"><img title="Watching" src="https://img.shields.io/github/watchers/Itzpatron/PATRON-MD?label=Watchers&color=blue&style=flat-square"></a>
-<a href="https://github.com/Itzpatron/PATRON-MD"><img title="Open Source" src="https://img.shields.io/badge/Author-Patron%20Bot%20Inc.-red?v=103"></a>
-<a href="https://github.com/Itzpatron/PATRON-MD/"><img title="Size" src="https://img.shields.io/github/repo-size/Itzpatron/PATRON-MD?style=flat-square&color=green"></a>
+<a href="https://github.com/Kaya2005/followers"><img title="Followers" src="https://img.shields.io/github/followers/Itzpatron?color=red&style=flat-square"></a>
+<a href="https://github.com/Kaya2005/KAYA-MD/stargazers/"><img title="Stars" src="https://img.shields.io/github/stars/Itzpatron/PATRON-MD?color=blue&style=flat-square"></a>
+<a href="https://github.com/Kaya2005/KAYA-MD/network/members"><img title="Forks" src="https://img.shields.io/github/forks/Itzpatron/PATRON-MD?color=red&style=flat-square"></a>
+<a href="https://github.com/Kaya2005/KAYA-MD/watchers"><img title="Watching" src="https://img.shields.io/github/watchers/Itzpatron/PATRON-MD?label=Watchers&color=blue&style=flat-square"></a>
+<a href="https://github.com/Kaya2005/KAYA-MD"><img title="Open Source" src="https://img.shields.io/badge/Author-Patron%20Bot%20Inc.-red?v=103"></a>
+<a href="https://github.com/Kaya2005/KAYA-MD/"><img title="Size" src="https://img.shields.io/github/repo-size/Itzpatron/PATRON-MD?style=flat-square&color=green"></a>
 <a href="https://hits.seeyoufarm.com"><img src="https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2FItzpatron%2FPATRON-MD&count_bg=%2379C83D&title_bg=%23555555&icon=probot.svg&icon_color=%2300FF6D&title=hits&edge_flat=false"/></a>
 <a href="https://github.com/Itzpatron/PATRON-MD/graphs/commit-activity"><img height="20" src="https://img.shields.io/badge/Maintained%3F-yes-green.svg"></a>&nbsp;&nbsp;
 </p>
 <p align='center'>
     </p>
-<p align="center"><img src="https://profile-counter.glitch.me/{PATRON-MD}/count.svg" alt="itzpatron :: Visitor's Count" /></p>
+<p align="center"><img src="https://profile-counter.glitch.me/{KAYA-MD}/count.svg" alt="itzpatron :: Visitor's Count" /></p>
 
 -------
 
 ## ```Connect With Me```
 <p align="center">
 <a href="https://www.youtube.com/@Itzpatron1"><img src="https://img.shields.io/badge/YouTube-ff0000?style=for-the-badge&logo=youtube&logoColor=ff000000&link=https://www.youtube.com/@Itzpatron1" /><br>
-<a href="https://whatsapp.com/channel/0029Val0s0rIt5rsIDPCoD2q"><img src="https://img.shields.io/badge/WhatsApp Channel-25D366?style=for-the-badge&logo=whatsapp&logoColor=white&link=https://whatsapp.com/channel/0029Val0s0rIt5rsIDPCoD2q" /><br>
+<a href="https://whatsapp.com/channel/0029VaiPkRPLY6d0qEX50e2k"><img src="https://img.shields.io/badge/WhatsApp Channel-25D366?style=for-the-badge&logo=whatsapp&logoColor=white&link=https://whatsapp.com/channel/0029VaiPkRPLY6d0qEX50e2k" /><br>
 <a href="https://t.me/patrontechhub"><img src="https://img.shields.io/badge/Telegram-00FFFF?style=for-the-badge&logo=telegram&logoColor=white" />
 <a href="https://chat.whatsapp.com/C6pWKvDfFRTAXScxTGFqvP"><img src="https://img.shields.io/badge/Support Group-25D366?style=for-the-badge&logo=whatsapp&logoColor=white" />
 <a href="https://www.instagram.com/justt.patron?igsh=MzNlNGNkZWQ4Mg=="><img src="https://img.shields.io/badge/Instagram-A020F0?style=for-the-badge&logo=instagram&logoColor=white" />
@@ -42,17 +42,17 @@ PATRON Multi Device is a automated whatsapp bot created by <a href="https://gith
 
 ## ```My Channel```
 
-- [`Whatsapp Channel`](https://whatsapp.com/channel/0029Val0s0rIt5rsIDPCoD2q)
+- [`Whatsapp Channel`](https://whatsapp.com/channel/0029VaiPkRPLY6d0qEX50e2k)
 - [`Support GC`](https://chat.whatsapp.com/C6pWKvDfFRTAXScxTGFqvP)
 - [`Telegram Channel`](https://t.me/patrontechhub)
 
 
 # Setup For Deployment 👇
 
-- FORK THE REPOSITORY [Here](https://github.com/Itzpatron/PATRON-MD/fork)
+- FORK THE REPOSITORY [Here](https://github.com/Kaya2005/KAYA-MD/fork)
 
 ## `Pair number For Session, Click menu`
-[![PATRON-MD](https://repl.it/badge/github/quiec/whatsasena)](https://patron-pair.onrender.com/)
+[![KAYA-MD](https://repl.it/badge/github/quiec/whatsasena)](https://patron-pair.onrender.com/)
 
 
 ## ` BUILDPACKS`
