@@ -1,8 +1,8 @@
 {
-  "name": "PATRON-MD",
+  "name": "KAYA-MD",
   "description": "whatsapp md bot build with nodejs",
   "repository": "https://github.com/Itzpatron/PATRON-MD",
-  "logo": "https://i.imgur.com/5wsWcjp.jpeg",
+  "logo": "https://files.catbox.moe/aibh0u.jpeg",
   "keywords": ["nodejs", "bot", "whatsapp bot", "whatsapp automation", "multi device"],
   "buildpacks": [
     {

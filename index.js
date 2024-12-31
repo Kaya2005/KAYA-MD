@@ -615,7 +615,7 @@ ImageLeft = await getBuffer(ppuser)
  if (anu.action == 'add') {
   const canWel = await new canvafy.WelcomeLeave()
     .setAvatar(ImageWlcm)
-    .setBackground("image", "https://files.catbox.moe/vneik8.jpg")
+    .setBackground("image", "https://files.catbox.moe/aibh0u.jpeg")
     .setTitle("Welcome")
     .setDescription(`welcome bro`)
     .setBorder("#2a2e35")
@@ -631,7 +631,7 @@ NanoBotz.sendMessage(anu.id,
  mentionedJid:[num],
       externalAdReply: {
                 title: 'W E L C O M E',
-                body: 'PATRON-MD',
+                body: 'KAYA-MD',
                 thumbnail: xnxx,
                 sourceUrl: '',
                 mediaType: 1,
@@ -643,7 +643,7 @@ NanoBotz.sendMessage(anu.id,
  } else if (anu.action == 'remove') {
    const canWel = await new canvafy.WelcomeLeave()
     .setAvatar(ImageLeft)
-    .setBackground("image", "https://files.catbox.moe/vneik8.jpg")
+    .setBackground("image", "https://files.catbox.moe/aibh0u.jpeg")
     .setTitle("Goodbye")
     .setDescription(`Bye Member No-${jumpahMem}`)
     .setBorder("#2a2e35")
@@ -658,7 +658,7 @@ NanoBotz.sendMessage(anu.id,
  mentionedJid:[num],
       externalAdReply: {
                 title: 'G O O D B Y E',
-                body: 'PATRON-MD',
+                body: 'KAYA-MD',
                 thumbnail: pornhub,
                 sourceUrl: '',
                 mediaType: 1,
