@@ -110,12 +110,24 @@ export const smsg = (client, m, store) => {
   if (quotedRaw) {
     if (typeof quotedRaw === "object") {
       const type = getContentType(quotedRaw);
-      m.quoted = quotedRaw[type] || quotedRaw;
-      m.quoted.mtype = type;
-      m.quoted.id = m.msg?.contextInfo?.stanzaId || null;
-      m.quoted.sender =
-        jidNormalizedUser(m.msg?.contextInfo?.participant) || null;
-      m.quoted.chat = m.chat;
+      const quotedMsg = quotedRaw[type] ?? quotedRaw;
+
+      // Si c'est une string, on wrap dans un objet
+      m.quoted = (typeof quotedMsg === "string")
+        ? {
+            text: quotedMsg,
+            mtype: type,
+            id: m.msg?.contextInfo?.stanzaId || null,
+            sender: jidNormalizedUser(m.msg?.contextInfo?.participant) || null,
+            chat: m.chat,
+          }
+        : {
+            ...quotedMsg,
+            mtype: type,
+            id: m.msg?.contextInfo?.stanzaId || null,
+            sender: jidNormalizedUser(m.msg?.contextInfo?.participant) || null,
+            chat: m.chat,
+          };
     } else {
       // quotedRaw est une string => wrap dans un objet
       m.quoted = {
