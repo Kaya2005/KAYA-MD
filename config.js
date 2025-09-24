@@ -3,17 +3,16 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-// -------------------- ESM __dirname --------------------
+// ESM __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// -------------------- Configuration par défaut --------------------
 const defaultConfig = {
-  SESSION_ID: "met ta session ici",
+  SESSION_ID: "kaya~6AlmyCCK#BQ9QTMJ-nQGudAtkcmaoJGRsQU8otnhSaBuCQKTsVeg",
   OWNER_NUMBER: "243993621718",
   PREFIX: ".",
   TIMEZONE: "Africa/Kinshasa",
-  publicBot: true,       // true = public, false = privé par défaut
+  publicBot: true, // true = public, false = privé par défaut
   autoRead: true,
   restrict: false,
   botImage: "",
@@ -24,28 +23,27 @@ const defaultConfig = {
   }
 };
 
-// -------------------- Chemin vers le fichier config.json --------------------
+// 📂 chemin vers ./data/config.json
 const dataDir = path.join(__dirname, "data");
-const configPath = path.join(dataDir, "config.json");
-
-// Création du dossier /data si inexistant
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
-// Création du fichier config.json avec les valeurs par défaut si inexistant
+const configPath = path.join(dataDir, "config.json");
+
+// Crée config.json si inexistant
 if (!fs.existsSync(configPath)) {
   fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
   console.log("✅ config.json créé avec les paramètres par défaut dans /data");
 }
 
-// -------------------- Chargement de la configuration --------------------
+// Charge config.json
 let userConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
 
-// -------------------- Fonction pour sauvegarder les modifications --------------------
+// Fonction pour sauvegarder après modification
 export function saveConfig(updatedConfig) {
   userConfig = { ...userConfig, ...updatedConfig };
   fs.writeFileSync(configPath, JSON.stringify(userConfig, null, 2));
   console.log("✅ Configuration sauvegardée avec succès.");
 }
 
-// -------------------- Export de la configuration complète --------------------
+// Export de la config complète
 export default userConfig;
