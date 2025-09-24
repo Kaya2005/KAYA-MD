@@ -1,5 +1,5 @@
 {
-  "name": "Killua-MD",
+  "name": "KAYA-MD",
   "version": "0.0.1",
   "description": "Automated WhatsApp MD bot created using Node.js and Baileys lib",
   "main": "index.js",
@@ -8,7 +8,7 @@
     "start": "node index.js"
   },
   "keywords": [
-    "Killua-MD"
+    "KAYA-MD"
   ],
   "author": "Rexz",
   "license": "NYX",
