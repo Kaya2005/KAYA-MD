@@ -4,23 +4,33 @@ import chalk from "chalk";
 import crypto from "crypto";
 import axios from "axios";
 import moment from "moment-timezone";
-import { sizeFormatter } from "human-readable";
 import util from "util";
 import * as Jimp from "jimp";
+import path from "path";
+import { fileURLToPath } from "url";
 
+// 🔹 Elaina Bail imports
 import {
   extractMessageContent,
-  getDevice,
   jidNormalizedUser,
   proto,
-  delay,
   getContentType,
   areJidsSameUser,
-  generateWAMessage,
-  generateWAMessageFromContent
-} from "@whiskeysockets/baileys";
+  generateWAMessageFromContent,
+  delay,
+  getDevice
+} from "@rexxhayanasi/elaina-bail";
 
 // =================== Fonctions utilitaires ===================
+export const sizeFormatter = (bytes, decimals = 2) => {
+  if (bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+};
+
 export const unixTimestampSeconds = (date = new Date()) =>
   Math.floor(date.getTime() / 1000);
 
@@ -70,141 +80,112 @@ export const getGroupAdmins = (participants) =>
     .map((p) => p.id);
 
 // =================== Serialize Message ===================
-export const smsg = (ask, m, store) => {
+export const smsg = (client, m, store) => {
   if (!m) return m;
-  let M = proto.WebMessageInfo;
 
-  if (m.key) {
-    m.id = m.key.id;
-    m.from = m.key.remoteJid.startsWith("status")
-      ? jidNormalizedUser(m.key?.participant || m.participant)
-      : jidNormalizedUser(m.key.remoteJid);
-    m.isBaileys = m.id?.startsWith("BAE5") && m.id.length === 16;
-    m.chat = m.key.remoteJid;
-    m.fromMe = m.key.fromMe;
-    m.isGroup = m.chat.endsWith("@g.us");
-    m.sender = ask.decodeJid(
-      (m.fromMe && ask.user.id) ||
-        m.participant ||
-        m.key.participant ||
-        m.chat ||
-        ""
-    );
-    if (m.isGroup) m.participant = ask.decodeJid(m.key.participant) || "";
-  }
+  // =================== Basic fields ===================
+  m.id = m.key?.id || null;
+  m.chat = m.key?.remoteJid || null;
+  m.fromMe = m.key?.fromMe || false;
+  m.isGroup = m.chat?.endsWith("@g.us");
+  m.sender =
+    m.fromMe && client.user
+      ? client.user.id
+      : jidNormalizedUser(m.key?.participant || m.participant || m.chat);
 
-  if (m.message) {
-    m.mtype = getContentType(m.message);
-    m.msg =
-      m.mtype == "viewOnceMessage"
-        ? m.message[m.mtype]?.message?.[
-            getContentType(m.message[m.mtype].message)
-          ]
-        : m.message[m.mtype];
-    m.body =
-      m.message?.conversation ||
-      m.msg?.caption ||
-      m.msg?.text ||
-      (m.mtype == "listResponseMessage" &&
-        m.msg?.singleSelectReply?.selectedRowId) ||
-      (m.mtype == "buttonsResponseMessage" && m.msg?.selectedButtonId) ||
-      (m.mtype == "viewOnceMessage" && m.msg?.caption) ||
-      m.text;
+  // =================== Type & Message ===================
+  m.mtype = getContentType(m.message);
+  m.msg = m.mtype ? m.message[m.mtype] : null;
+  m.body =
+    m.message?.conversation ||
+    m.msg?.caption ||
+    m.msg?.text ||
+    (m.mtype === "listResponseMessage" &&
+      m.msg?.singleSelectReply?.selectedRowId) ||
+    (m.mtype === "buttonsResponseMessage" && m.msg?.selectedButtonId) ||
+    "";
 
-    let quoted = (m.quoted = m.msg?.contextInfo?.quotedMessage || null);
-    m.mentionedJid = m.msg?.contextInfo?.mentionedJid || [];
-
-    if (m.quoted) {
-      let type = getContentType(quoted);
-      m.quoted = m.quoted[type];
-      if (["productMessage"].includes(type)) {
-        type = getContentType(m.quoted);
-        m.quoted = m.quoted[type];
-      }
-      if (typeof m.quoted === "string") m.quoted = { text: m.quoted };
-
-      m.quoted.key = {
-        remoteJid: m.msg?.contextInfo?.remoteJid || m.from,
-        participant: jidNormalizedUser(m.msg?.contextInfo?.participant),
-        fromMe: areJidsSameUser(
-          jidNormalizedUser(m.msg?.contextInfo?.participant),
-          jidNormalizedUser(ask?.user?.id)
-        ),
-        id: m.msg?.contextInfo?.stanzaId,
-      };
-
+  // =================== Quoted ===================
+  const quotedRaw = m.msg?.contextInfo?.quotedMessage || null;
+  if (quotedRaw) {
+    if (typeof quotedRaw === "object") {
+      const type = getContentType(quotedRaw);
+      m.quoted = quotedRaw[type] || quotedRaw;
       m.quoted.mtype = type;
-      m.quoted.from = /g\.us|status/.test(m.msg?.contextInfo?.remoteJid)
-        ? m.quoted.key.participant
-        : m.quoted.key.remoteJid;
-      m.quoted.id = m.msg?.contextInfo?.stanzaId;
-      m.quoted.chat = m.msg?.contextInfo?.remoteJid || m.chat;
-      m.quoted.isBaileys = m.quoted.id
-        ? m.quoted.id.startsWith("BAE5") && m.quoted.id.length === 16
-        : false;
-      m.quoted.sender = ask.decodeJid(m.msg?.contextInfo?.participant);
-      m.quoted.fromMe = m.quoted.sender === (ask.user && ask.user.id);
-      m.quoted.text =
-        m.quoted.text ||
-        m.quoted.caption ||
-        m.quoted.conversation ||
-        m.quoted.contentText ||
-        m.quoted.selectedDisplayText ||
-        m.quoted.title ||
-        "";
-      m.quoted.mentionedJid = m.msg?.contextInfo?.mentionedJid || [];
-
-      m.getQuotedObj = m.getQuotedMessage = async () => {
-        if (!m.quoted.id) return false;
-        let q = await store.loadMessage(m.chat, m.quoted.id, ask);
-        return smsg(ask, q, store);
+      m.quoted.id = m.msg?.contextInfo?.stanzaId || null;
+      m.quoted.sender =
+        jidNormalizedUser(m.msg?.contextInfo?.participant) || null;
+      m.quoted.chat = m.chat;
+    } else {
+      // quotedRaw est une string => wrap dans un objet
+      m.quoted = {
+        text: quotedRaw,
+        mtype: "textMessage",
+        id: null,
+        sender: null,
+        chat: m.chat,
       };
-
-      // ✅ Remplacement de M.fromObject par generateWAMessageFromContent
-      const vM = (m.quoted.fakeObj = generateWAMessageFromContent(
-        m.chat,
-        m.msg,
-        { userJid: m.quoted.sender }
-      ));
-
-      m.quoted.delete = () => ask.sendMessage(m.quoted.chat, { delete: vM.key });
-      m.quoted.copyNForward = (jid, forceForward = false, options = {}) =>
-        ask.copyNForward(jid, vM, forceForward, options);
-      m.quoted.download = () => ask.downloadMediaMessage(m.quoted);
     }
   }
 
-  if (m.msg?.url) m.download = () => ask.downloadMediaMessage(m.msg);
-
-  m.text =
-    m.msg?.text ||
-    m.msg?.caption ||
-    m.message?.conversation ||
-    m.msg?.contentText ||
-    m.msg?.selectedDisplayText ||
-    m.msg?.title ||
-    "";
-
+  // =================== Methods ===================
   m.reply = (text, chatId = m.chat, options = {}) => {
-    if (!ask.sendText) return;
+    if (!client.sendText) return;
     return Buffer.isBuffer(text)
-      ? ask.sendMedia(chatId, text, "file", "", m, { ...options })
-      : ask.sendText(chatId, text, m, { ...options });
+      ? client.sendMedia(chatId, text, "file", "", m, { ...options })
+      : client.sendText(chatId, text, m, { quoted: m, ...options });
   };
 
-  m.copy = () => smsg(ask, m, store);
-  m.copyNForward = (jid = m.chat, forceForward = false, options = {}) =>
-    ask.copyNForward(jid, m, forceForward, options);
+  m.download = async () => {
+    if (!m.msg) throw new Error("No media message present");
+    const type =
+      m.mtype === "imageMessage"
+        ? "image"
+        : m.mtype === "videoMessage"
+        ? "video"
+        : m.mtype === "audioMessage"
+        ? "audio"
+        : m.mtype === "stickerMessage"
+        ? "sticker"
+        : null;
+    if (!type) throw new Error("Unsupported media type");
+    const { downloadContentFromMessage } = await import(
+      "@rexxhayanasi/elaina-bail"
+    );
+    const stream = await downloadContentFromMessage(m.msg, type.replace("Message", ""));
+    const chunks = [];
+    for await (const chunk of stream) chunks.push(chunk);
+    return Buffer.concat(chunks);
+  };
+
+  if (m.quoted) {
+    m.quoted.download = async () => {
+      const quoted = m.msg?.contextInfo?.quotedMessage;
+      if (!quoted) throw new Error("No quoted media present");
+
+      const type = getContentType(quoted);
+      if (!["imageMessage", "videoMessage", "audioMessage", "stickerMessage"].includes(type)) {
+        throw new Error("Unsupported quoted media type");
+      }
+
+      const { downloadContentFromMessage } = await import(
+        "@rexxhayanasi/elaina-bail"
+      );
+      const stream = await downloadContentFromMessage(
+        quoted[type],
+        type.replace("Message", "")
+      );
+      const chunks = [];
+      for await (const chunk of stream) chunks.push(chunk);
+      return Buffer.concat(chunks);
+    };
+  }
 
   return m;
 };
 
 // =================== Hot reload ===================
-import { fileURLToPath } from "url";
-import path from "path";
-
 const __filename = fileURLToPath(import.meta.url);
-
 fs.watchFile(__filename, () => {
   fs.unwatchFile(__filename);
   console.log(chalk.redBright(`Update ${__filename}`));
