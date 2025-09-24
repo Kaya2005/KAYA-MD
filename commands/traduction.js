@@ -1,6 +1,6 @@
 // ==================== commands/traduc.js ====================
 import axios from 'axios';
-import { contextInfo } from '../utils/contextInfo.js'; // import centralisé
+import { contextInfo } from '../utils/contextInfo.js'; 
 
 const languages = {
   fr: 'français',
@@ -96,7 +96,7 @@ export default {
         );
       }
 
-      // ✅ Message traduit envoyé SANS contextInfo
+      
       await kaya.sendMessage(m.chat, { text: result }, { quoted: m });
 
     } catch (err) {

@@ -1,3 +1,4 @@
+// ================= commands/antitag.js =================
 import fs from "fs";
 import path from "path";
 import { contextInfo } from "../utils/contextInfo.js";
@@ -5,6 +6,7 @@ import checkAdminOrOwner from "../utils/checkAdmin.js";
 
 const antiTagAllFile = path.join(process.cwd(), "data/antiTagAllGroups.json");
 
+// ----------------- Load & Save -----------------
 function loadAntiTagAllGroups() {
   if (!fs.existsSync(antiTagAllFile)) return {};
   try {
@@ -18,6 +20,7 @@ function saveAntiTagAllGroups(groups) {
   fs.writeFileSync(antiTagAllFile, JSON.stringify(groups, null, 2));
 }
 
+// ----------------- Global -----------------
 if (!global.antiTagAllGroups) global.antiTagAllGroups = loadAntiTagAllGroups();
 if (!global.userTagWarns) global.userTagWarns = {}; // suivi des avertissements
 
@@ -29,6 +32,7 @@ export default {
   admin: true,
   botAdmin: true,
 
+  // ----------------- Commande -----------------
   run: async (kaya, m, msg, store, args) => {
     try {
       if (!m.isGroup) {
@@ -54,25 +58,26 @@ export default {
         );
       }
 
-      // ==================== Actions ====================
+      const chatId = m.chat;
+
       if (action === "on") {
-        global.antiTagAllGroups[m.chat] = { enabled: true };
+        global.antiTagAllGroups[chatId] = { enabled: true, mode: "warn" };
         saveAntiTagAllGroups(global.antiTagAllGroups);
-        return kaya.sendMessage(m.chat, { text: "✅ *Anti-tagall activé !*", contextInfo }, { quoted: m });
+        return kaya.sendMessage(chatId, { text: "✅ *Anti-tagall activé !*", contextInfo }, { quoted: m });
       }
 
       if (action === "off") {
-        delete global.antiTagAllGroups[m.chat];
+        delete global.antiTagAllGroups[chatId];
         saveAntiTagAllGroups(global.antiTagAllGroups);
-        return kaya.sendMessage(m.chat, { text: "❌ *Anti-tagall désactivé* pour ce groupe.", contextInfo }, { quoted: m });
+        return kaya.sendMessage(chatId, { text: "❌ *Anti-tagall désactivé* pour ce groupe.", contextInfo }, { quoted: m });
       }
 
       if (["delete", "warn", "kick"].includes(action)) {
-        if (!global.antiTagAllGroups[m.chat]) global.antiTagAllGroups[m.chat] = { enabled: true };
-        global.antiTagAllGroups[m.chat].enabled = true;
-        global.antiTagAllGroups[m.chat].mode = action;
+        if (!global.antiTagAllGroups[chatId]) global.antiTagAllGroups[chatId] = { enabled: true };
+        global.antiTagAllGroups[chatId].enabled = true;
+        global.antiTagAllGroups[chatId].mode = action;
         saveAntiTagAllGroups(global.antiTagAllGroups);
-        return kaya.sendMessage(m.chat, { text: `✅ Mode *${action.toUpperCase()}* activé pour l’anti-tagall.`, contextInfo }, { quoted: m });
+        return kaya.sendMessage(chatId, { text: `✅ Mode *${action.toUpperCase()}* activé pour l’anti-tagall.`, contextInfo }, { quoted: m });
       }
 
     } catch (err) {
@@ -81,6 +86,7 @@ export default {
     }
   },
 
+  // ----------------- Détection automatique -----------------
   detect: async (kaya, m) => {
     try {
       if (!m.isGroup) return;

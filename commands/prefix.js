@@ -1,23 +1,13 @@
-// ================= commands/prefix.js =================
-import checkAdminOrOwner from "../utils/checkAdmin.js";
-import config from '../config.js';
+import config, { saveConfig } from '../config.js';
 
 export default {
   name: 'prefix',
   description: '🔑 Change le préfixe du bot (owner uniquement)',
   category: 'Owner',
+  ownerOnly: true, // ✅ le handler bloque déjà les non-owners
 
-  run: async (kaya, m, msg, store, args) => {
+  run: async (kaya, m, msg, store, args, context) => {
     try {
-      const permissions = await checkAdminOrOwner(kaya, m.chat, m.sender);
-      if (!permissions.isOwner) {
-        return kaya.sendMessage(
-          m.chat,
-          { text: '🚫 Cette commande est réservée au propriétaire du bot.' },
-          { quoted: m }
-        );
-      }
-
       const newPrefix = args[0];
       if (!newPrefix) {
         return kaya.sendMessage(
@@ -27,9 +17,11 @@ export default {
         );
       }
 
+      // ✅ Mets à jour le préfixe en mémoire
       config.PREFIX = newPrefix;
 
-      if (config.saveConfig) config.saveConfig({ PREFIX: newPrefix });
+      // ✅ Sauvegarde en fichier si possible
+      if (saveConfig) saveConfig({ PREFIX: newPrefix });
 
       return kaya.sendMessage(
         m.chat,

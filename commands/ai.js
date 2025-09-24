@@ -34,7 +34,7 @@ export default {
         }
       );
 
-      // ✅ Récupère uniquement le message de l’IA
+   
       const reply = response.data?.message || "❌ Aucune réponse reçue.";
 
       await kaya.sendMessage(m.chat, { text: reply }, { quoted: m });

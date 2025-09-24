@@ -10,7 +10,7 @@ export default {
   description: "📢 Mentionne tous les membres du groupe avec un message personnalisé et élégant.",
   category: "Groupe",
   group: true,
-  admin: false, // 🔓 accessible à tout le monde
+  admin: false, 
 
   run: async (kaya, m, msg, store, args) => {
     try {
@@ -28,10 +28,10 @@ export default {
       const date = moment().format('dddd D MMMM YYYY');
       const time = moment().format('HH:mm:ss');
 
-      // 📌 Extraire uniquement les numéros pour affichage
+      
       const numbers = participants.map(p => p.split('@')[0]);
 
-      // 🌍 Nombre de pays distincts (on prend les 3 premiers chiffres du numéro)
+      
       const countryCodes = [...new Set(numbers.map(num => num.slice(0, 3)))];
       const totalCountries = countryCodes.length;
 
@@ -50,14 +50,14 @@ export default {
 👥 Membres :
 ${mentionList}`;
 
-      // ✅ Envoi du message tagué SANS contextInfo
+      
       await kaya.sendMessage(
         m.chat,
         {
           text: fullMessage,
           mentions: participants
         },
-        { quoted: m } // citation facultative
+        { quoted: m } 
       );
 
     } catch (error) {

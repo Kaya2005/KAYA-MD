@@ -1,5 +1,5 @@
 import moment from 'moment';
-import 'moment/locale/fr.js'; 
+import 'moment/locale/fr.js'; // ✅ ajoute le .js
 import { contextInfo } from '../utils/contextInfo.js';
 
 moment.locale('fr');

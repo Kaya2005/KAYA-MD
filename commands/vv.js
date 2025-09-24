@@ -1,8 +1,8 @@
 // ==================== commands/vv.js ====================
-import { downloadContentFromMessage } from '@whiskeysockets/baileys';
-import { contextInfo } from '../utils/contextInfo.js'; // import centralisé
+import { downloadMediaMessage } from '@rexxhayanasi/elaina-bail';
+import { contextInfo } from '../utils/contextInfo.js';
 
-// Util : convertir stream -> buffer
+// Util : convertir buffer
 async function streamToBuffer(stream) {
   const chunks = [];
   for await (const chunk of stream) chunks.push(chunk);
@@ -49,9 +49,8 @@ export default {
 
       const node = targetMsg.imageMessage;
 
-      // 🔹 Télécharge en buffer
-      const stream = await downloadContentFromMessage(node, 'image');
-      const buffer = await streamToBuffer(stream);
+      // 🔹 Télécharge en buffer avec Elaina Bail
+      const buffer = await downloadMediaMessage(node, 'image', { logger: kaya.logger });
 
       if (!buffer || buffer.length < 100) {
         return kaya.sendMessage(

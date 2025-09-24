@@ -1,9 +1,9 @@
+// ==================== commands/welcome.js ====================
 import fs from 'fs';
 import path from 'path';
-import config from '../config.js';
-import checkAdminOrOwner from '../utils/checkAdmin.js';
 import decodeJid from '../utils/decodeJid.js';
 import { contextInfo } from '../utils/contextInfo.js';
+import checkAdminOrOwner from '../utils/checkAdmin.js';
 
 const welcomeFile = path.join(process.cwd(), 'data', 'welcome.json');
 let welcomeData = {};
@@ -23,10 +23,11 @@ function saveWelcomeData() {
 export default {
   name: 'welcome',
   description: 'Active ou désactive le message de bienvenue dans les groupes',
+  category: 'Bot',
 
-  run: async (kaya, m, msg, store, args, { isGroup }) => {
+  run: async (kaya, m, msg, store, args, context) => {
     try {
-      if (!isGroup) return kaya.sendMessage(
+      if (!context.isGroup) return kaya.sendMessage(
         m.chat, 
         { text: '❌ Cette commande fonctionne uniquement dans un groupe.', contextInfo },
         { quoted: msg }
@@ -36,9 +37,9 @@ export default {
       const sender = decodeJid(m.sender);
 
       const permissions = await checkAdminOrOwner(kaya, chatId, sender);
-      permissions.isAdminOrOwner = permissions.isAdmin || permissions.isOwner;
+      const isAdminOrOwner = permissions.isAdmin || permissions.isOwner;
 
-      if (!permissions.isAdminOrOwner) return kaya.sendMessage(
+      if (!isAdminOrOwner) return kaya.sendMessage(
         chatId, 
         { text: '🚫 Accès refusé : Seuls les admins ou owners peuvent utiliser cette commande.', contextInfo },
         { quoted: msg }

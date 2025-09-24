@@ -1,41 +1,41 @@
 // ================= commands/left.js =================
 import config from '../config.js';
 
-export const name = 'left';
-export const description = 'Le bot quitte le groupe (owner uniquement)';
-export const category = 'Owner';
+export default {
+  name: 'left',
+  description: 'Le bot quitte le groupe (owner uniquement)',
+  category: 'Owner',
+  ownerOnly: true, // ✅ le handler bloque déjà les non-owners
 
-export async function run(kaya, m) {
-  const senderNumber = m.sender.split('@')[0];
-  const owners = config.OWNER_NUMBER.split(',').map(o => o.trim());
+  run: async (kaya, m, msg, store, args, context) => {
+    // ✅ Vérifie que seul le propriétaire peut utiliser
+    if (!context.isOwner) {
+      return kaya.sendMessage(
+        m.chat,
+        { text: '🚫 Cette commande est réservée au propriétaire du bot.' },
+        { quoted: m }
+      );
+    }
 
-  // ✅ Vérifie que seul le propriétaire peut utiliser
-  if (!owners.includes(senderNumber)) {
-    return kaya.sendMessage(
-      m.chat,
-      { text: '🚫 Cette commande est réservée au propriétaire du bot.' },
-      { quoted: m }
-    );
+    // ✅ Vérifie que c'est un groupe
+    if (!m.isGroup) {
+      return kaya.sendMessage(
+        m.chat,
+        { text: '❗ Cette commande doit être utilisée dans un groupe.' },
+        { quoted: m }
+      );
+    }
+
+    try {
+      // Le bot quitte silencieusement le groupe
+      await kaya.groupLeave(m.chat);
+    } catch (e) {
+      console.error('❌ Erreur leave:', e);
+      return kaya.sendMessage(
+        m.chat,
+        { text: '⚠️ Impossible de quitter le groupe.' },
+        { quoted: m }
+      );
+    }
   }
-
-  // ✅ Vérifie que c'est un groupe
-  if (!m.isGroup) {
-    return kaya.sendMessage(
-      m.chat,
-      { text: '❗ Cette commande doit être utilisée dans un groupe.' },
-      { quoted: m }
-    );
-  }
-
-  try {
-    // Le bot quitte silencieusement le groupe
-    await kaya.groupLeave(m.chat);
-  } catch (e) {
-    console.error('❌ Erreur leave:', e);
-    return kaya.sendMessage(
-      m.chat,
-      { text: '⚠️ Impossible de quitter le groupe.' },
-      { quoted: m }
-    );
-  }
-}
+};

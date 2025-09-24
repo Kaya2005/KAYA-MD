@@ -1,5 +1,5 @@
 // ==================== commands/sticker.js ====================
-import { downloadContentFromMessage } from '@whiskeysockets/baileys';
+import { downloadMediaMessage, downloadContentFromMessage } from '@rexxhayanasi/elaina-bail';
 import { Sticker, StickerTypes } from 'wa-sticker-formatter';
 import { contextInfo } from '../utils/contextInfo.js';
 
@@ -11,39 +11,63 @@ async function streamToBuffer(stream) {
 
 export default {
   name: 'sticker',
-  description: 'Convertit une image (ou courte vidéo) en sticker avec author = pseudo by KAYA-MD',
+  description: 'Convertit une image (ou courte vidéo) en sticker',
   category: 'Stickers',
 
-  run: async (kaya, m, msg, store, args) => {
+  run: async (kaya, m) => {
     try {
-      const quoted = m.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-      const current = m.message;
-      const targetMsg = quoted || current;
+      const target = m.quoted ? m.quoted : m;
 
-      if (!targetMsg) {
-        return kaya.sendMessage(m.chat, { text: '❌ Réponds à une image/vidéo ou envoie-en une avec `.sticker`', contextInfo }, { quoted: m });
+      if (!target.mtype || !['imageMessage', 'videoMessage'].includes(target.mtype)) {
+        return kaya.sendMessage(
+          m.chat,
+          { text: '❌ Réponds à une image ou vidéo.', contextInfo },
+          { quoted: m }
+        );
       }
 
-      const type = Object.keys(targetMsg)[0];
-      const node = targetMsg[type];
-
-      if (!['imageMessage', 'videoMessage'].includes(type)) {
-        return kaya.sendMessage(m.chat, { text: '❌ Réponds à une image/vidéo (JPEG/PNG ou vidéo courte).', contextInfo }, { quoted: m });
-      }
-
-      if (type === 'videoMessage') {
-        const seconds = node.seconds || node.videoMessage?.seconds || 0;
+      if (target.mtype === 'videoMessage') {
+        const seconds = target.msg?.seconds || target.seconds || 0;
         if (seconds > 8) {
-          return kaya.sendMessage(m.chat, { text: '⏱️ La vidéo est trop longue. Max 8 secondes pour un sticker.', contextInfo }, { quoted: m });
+          return kaya.sendMessage(
+            m.chat,
+            { text: '⏱️ La vidéo est trop longue. Max 8 secondes.', contextInfo },
+            { quoted: m }
+          );
         }
       }
 
-      const kind = type === 'imageMessage' ? 'image' : 'video';
-      const stream = await downloadContentFromMessage(node, kind);
-      const buffer = await streamToBuffer(stream);
+      let buffer;
+
+      // Cas spécial Elaina Bail : message a déjà une méthode download()
+      if (typeof target.download === 'function') {
+        buffer = await target.download();
+      }
+
+      // Sinon on tente downloadMediaMessage
+      if (!buffer) {
+        try {
+          buffer = await downloadMediaMessage(target, 'buffer', undefined, {
+            logger: kaya.logger,
+            reuploadRequest: kaya.updateMediaMessage
+          });
+        } catch (err1) {
+          // Fallback classique
+          const node = target.message?.[target.mtype] || target.msg;
+          if (!node) throw new Error('Message média introuvable (aucun node)');
+
+          const kind = target.mtype === 'imageMessage' ? 'image' : 'video';
+          const stream = await downloadContentFromMessage(node, kind);
+          buffer = await streamToBuffer(stream);
+        }
+      }
 
       if (!buffer || buffer.length < 100) {
-        return kaya.sendMessage(m.chat, { text: '❌ Impossible de lire ce média. Réessaie avec une image/vidéo différente.', contextInfo }, { quoted: m });
+        return kaya.sendMessage(
+          m.chat,
+          { text: '❌ Impossible de lire ce média.', contextInfo },
+          { quoted: m }
+        );
       }
 
       const pseudo = m.pushName || 'User';
@@ -57,11 +81,12 @@ export default {
       await kaya.sendMessage(m.chat, { sticker: webp }, { quoted: m });
 
     } catch (err) {
-      console.error('Sticker error:', err);
-      if (String(err?.message || err).toLowerCase().includes('ffmpeg')) {
-        return kaya.sendMessage(m.chat, { text: '❌ ffmpeg est requis pour les stickers vidéo. Installe-le puis réessaie.', contextInfo }, { quoted: m });
-      }
-      return kaya.sendMessage(m.chat, { text: '❌ Erreur lors de la création du sticker.', contextInfo }, { quoted: m });
+      console.error('Sticker final error:', err);
+      return kaya.sendMessage(
+        m.chat,
+        { text: '❌ Erreur lors de la création du sticker.', contextInfo },
+        { quoted: m }
+      );
     }
   }
 };

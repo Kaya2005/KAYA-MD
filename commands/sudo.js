@@ -1,16 +1,16 @@
 // ==================== commands/sudo.js ====================
 import config from '../config.js';
-import checkAdminOrOwner from '../utils/checkAdmin.js';
 import { contextInfo } from '../utils/contextInfo.js';
 
 export default {
   name: 'sudo',
   description: '➕ Ajoute un nouvel owner (réservé au propriétaire principal)',
   category: 'Owner',
+  ownerOnly: true, // ✅ le handler bloque déjà les non-owners
 
-  run: async (kaya, m, msg, store, args) => {
-    const permissions = await checkAdminOrOwner(kaya, m.chat, m.sender);
-    if (!permissions.isOwner) {
+  run: async (kaya, m, msg, store, args, context) => {
+    // ✅ Vérifie que seul le propriétaire peut utiliser
+    if (!context.isOwner) {
       return kaya.sendMessage(
         m.chat,
         { text: '🚫 *Seul le propriétaire principal peut utiliser cette commande.*', contextInfo },
@@ -43,7 +43,7 @@ export default {
     }
 
     owners.push(targetId);
-    config.saveConfig({ OWNER_NUMBER: owners.join(',') });
+    if (config.saveConfig) config.saveConfig({ OWNER_NUMBER: owners.join(',') });
 
     await kaya.sendMessage(
       m.chat,

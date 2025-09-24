@@ -1,17 +1,17 @@
 // ================= commands/autoreact.js =================
-import checkAdminOrOwner from "../utils/checkAdmin.js";
 import { saveBotModes } from "../utils/botModes.js";
-import { contextInfo } from "../utils/contextInfo.js"; // ← import global
+import { contextInfo } from "../utils/contextInfo.js";
 
 export default {
   name: "autoreact",
   description: "Active/Désactive le mode réaction automatique ❤️ (owner uniquement)",
   category: "Owner",
+  ownerOnly: true, // le handler bloque déjà les non-owners
 
-  run: async (kaya, m, msg, store, args) => {
+  run: async (kaya, m, msg, store, args, context) => {
     try {
-      const permissions = await checkAdminOrOwner(kaya, m.chat, m.sender);
-      if (!permissions.isOwner) {
+      // ✅ Vérification owner centralisée via handler
+      if (!context.isOwner) {
         return kaya.sendMessage(
           m.chat,
           { text: "🚫 Commande réservée au propriétaire.", contextInfo },
@@ -42,7 +42,7 @@ export default {
         { quoted: m }
       );
     } catch (err) {
-      console.error("Erreur autoreact.js :", err);
+      console.error("❌ Erreur autoreact.js :", err);
       return kaya.sendMessage(
         m.chat,
         { text: "❌ Une erreur est survenue lors du changement du mode.", contextInfo },

@@ -6,7 +6,7 @@ import { contextInfo } from "../utils/contextInfo.js";
 
 const antiDemoteFile = path.join(process.cwd(), "data/antidemote.json");
 
-// Charger ou créer le fichier
+
 let antiDemoteData = {};
 try {
   antiDemoteData = JSON.parse(fs.readFileSync(antiDemoteFile, "utf-8"));
@@ -19,7 +19,7 @@ function saveAntiDemote() {
   fs.writeFileSync(antiDemoteFile, JSON.stringify(antiDemoteData, null, 2));
 }
 
-// Set pour éviter les boucles
+
 const processing = new Set();
 
 export default {
@@ -79,7 +79,7 @@ export default {
       const { id: chatId, participants, action, byBot } = update;
       if (!antiDemoteData[chatId]) return;
       if (action !== "demote") return;
-      if (byBot) return; // Ignore les actions générées par le bot
+      if (byBot) return; 
 
       for (const user of participants) {
         if (processing.has(user)) continue;

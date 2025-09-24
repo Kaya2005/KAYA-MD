@@ -1,10 +1,10 @@
-// ================= commands/photo.js =================
+// ==================== commands/photo.js ====================
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import sharp from 'sharp';
-import { downloadContentFromMessage } from '@whiskeysockets/baileys';
-import { contextInfo } from '../utils/contextInfo.js'; // import centralisé
+import { downloadMediaMessage, downloadContentFromMessage } from '@rexxhayanasi/elaina-bail';
+import { contextInfo } from '../utils/contextInfo.js';
 
 async function streamToBuffer(stream) {
   const chunks = [];
@@ -18,10 +18,9 @@ export const category = 'Stickers';
 
 export async function run(kaya, m, msg, store, args) {
   try {
-    const quoted = m.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-    const targetMsg = quoted || m.message;
+    const target = m.quoted ? m.quoted : m;
 
-    if (!targetMsg) {
+    if (!target.mtype || target.mtype !== 'stickerMessage') {
       return kaya.sendMessage(
         m.chat,
         { text: '❌ Réponds à un sticker avec `.photo`', contextInfo },
@@ -29,17 +28,26 @@ export async function run(kaya, m, msg, store, args) {
       );
     }
 
-    const type = Object.keys(targetMsg)[0];
-    if (!type.includes('stickerMessage')) {
-      return kaya.sendMessage(
-        m.chat,
-        { text: '❌ Ce message n’est pas un sticker.', contextInfo },
-        { quoted: m }
-      );
+    let buffer;
+
+    // Cas spécial Elaina Bail : message a déjà une méthode download()
+    if (typeof target.download === 'function') {
+      buffer = await target.download();
     }
 
-    const stream = await downloadContentFromMessage(targetMsg[type], 'sticker');
-    const buffer = await streamToBuffer(stream);
+    // Sinon fallback sur downloadMediaMessage
+    if (!buffer) {
+      try {
+        buffer = await downloadMediaMessage(target.msg || target.message[target.mtype], 'sticker', { logger: kaya.logger });
+      } catch (err1) {
+        // Fallback classique avec downloadContentFromMessage
+        const node = target.msg || target.message?.[target.mtype];
+        if (!node) throw new Error('Sticker introuvable pour téléchargement');
+
+        const stream = await downloadContentFromMessage(node, 'sticker');
+        buffer = await streamToBuffer(stream);
+      }
+    }
 
     if (!buffer || buffer.length < 100) {
       return kaya.sendMessage(

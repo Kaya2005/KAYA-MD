@@ -21,7 +21,7 @@ export default {
         );
       }
 
-      // ✅ Vérifie si l'utilisateur est admin ou owner
+      
       const permissions = await checkAdminOrOwner(kaya, m.chat, m.sender);
       permissions.isAdminOrOwner = permissions.isAdmin || permissions.isOwner;
 
@@ -33,7 +33,7 @@ export default {
         );
       }
 
-      // ✅ Vérifie si un numéro est fourni
+      
       if (!args[0]) {
         return kaya.sendMessage(
           m.chat,
@@ -44,7 +44,7 @@ export default {
 
       const target = args[0].replace(/[^0-9]/g, '') + '@s.whatsapp.net';
 
-      // ✅ Vérifie si la personne est déjà dans le groupe
+      
       const metadata = await kaya.groupMetadata(m.chat);
       const targetExists = metadata.participants.find(p => decodeJid(p.id) === decodeJid(target));
       if (targetExists) {
@@ -55,7 +55,7 @@ export default {
         );
       }
 
-      // ✅ Ajoute silencieusement
+      
       await kaya.groupParticipantsUpdate(m.chat, [target], 'add');
 
       return kaya.sendMessage(

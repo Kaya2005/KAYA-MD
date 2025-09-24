@@ -1,17 +1,17 @@
 // ==================== commands/unsudo.js ====================
 import config from '../config.js';
-import checkAdminOrOwner from '../utils/checkAdmin.js'; 
 import { contextInfo } from '../utils/contextInfo.js'; // import centralisé
 
 export default {
   name: 'unsudo',
   description: '➖ Retire un owner existant (réservé au propriétaire principal)',
   category: 'Owner',
+  ownerOnly: true, // ✅ le handler bloque déjà les non-owners
 
-  run: async (kaya, m, msg, store, args) => {
+  run: async (kaya, m, msg, store, args, context) => {
     try {
       const senderId = m.sender.split('@')[0].replace(/\D/g, '');
-      const owners = config.OWNER_NUMBER
+      let owners = config.OWNER_NUMBER
         .split(',')
         .map(o => o.split('@')[0].replace(/\D/g, '').trim());
 
@@ -53,8 +53,8 @@ export default {
       }
 
       // ✅ Retire l’owner et sauvegarde
-      const updatedOwners = owners.filter(o => o !== targetId);
-      config.saveConfig({ OWNER_NUMBER: updatedOwners.join(',') });
+      owners = owners.filter(o => o !== targetId);
+      config.saveConfig({ OWNER_NUMBER: owners.join(',') });
 
       return kaya.sendMessage(
         m.chat,
@@ -71,7 +71,7 @@ export default {
       );
 
     } catch (err) {
-      console.error('Erreur unsudo.js :', err);
+      console.error('❌ Erreur unsudo.js :', err);
       return kaya.sendMessage(
         m.chat,
         { text: '❌ Une erreur est survenue lors du retrait de l’owner.', contextInfo },

@@ -1,5 +1,4 @@
 // ================= commands/recording.js =================
-import checkAdminOrOwner from '../utils/checkAdmin.js';
 import { saveBotModes } from '../utils/botModes.js';
 import { contextInfo } from '../utils/contextInfo.js';
 
@@ -7,10 +6,11 @@ export default {
   name: 'recording',
   description: 'Active/Désactive le mode micro (owner uniquement)',
   category: 'Owner',
+  ownerOnly: true, // ✅ le handler bloque déjà les non-owners
 
-  run: async (kaya, m, msg, store, args) => {
-    const permissions = await checkAdminOrOwner(kaya, m.chat, m.sender);
-    if (!permissions.isOwner) {
+  run: async (kaya, m, msg, store, args, context) => {
+    // ✅ Vérifie que seul le propriétaire peut utiliser
+    if (!context.isOwner) {
       return kaya.sendMessage(
         m.chat,
         { text: '🚫 Commande réservée au propriétaire.', contextInfo },
@@ -19,7 +19,7 @@ export default {
     }
 
     const action = args[0]?.toLowerCase();
-    if (!['on','off'].includes(action)) {
+    if (!['on', 'off'].includes(action)) {
       return kaya.sendMessage(
         m.chat,
         { text: '❌ Utilisation : .recording on|off', contextInfo },

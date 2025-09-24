@@ -1,8 +1,7 @@
 // ==================== commands/unban.js ====================
 import fs from 'fs';
 import path from 'path';
-import checkAdminOrOwner from '../utils/checkAdmin.js'; 
-import { contextInfo } from '../utils/contextInfo.js'; // centralisation
+import { contextInfo } from '../utils/contextInfo.js'; // centralisé
 
 const banFile = path.join(process.cwd(), 'data/ban.json');
 
@@ -21,14 +20,14 @@ function saveBanned() {
 
 export default {
   name: 'unban',
-  description: 'Débannir un utilisateur du bot',
+  description: 'Débannir un utilisateur du bot (owner uniquement)',
   category: 'Owner',
+  ownerOnly: true, // ✅ le handler bloque déjà les non-owners
 
-  run: async (kaya, m, msg, store, args) => {
+  run: async (kaya, m, msg, store, args, context) => {
     try {
       // ✅ Vérifie si le sender est owner
-      const permissions = await checkAdminOrOwner(kaya, m.chat, m.sender);
-      if (!permissions.isOwner) {
+      if (!context.isOwner) {
         return kaya.sendMessage(
           m.chat,
           { text: '🚫 Cette commande est réservée au propriétaire du bot.', contextInfo },
@@ -40,11 +39,9 @@ export default {
       let target = m.quoted?.sender?.split('@')[0];
 
       if (!target) {
-        if (msg.message?.extendedTextMessage?.contextInfo?.mentionedJid?.length) {
-          target = msg.message.extendedTextMessage.contextInfo.mentionedJid[0].split('@')[0];
-        } else if (args[0]) {
-          target = args[0].replace(/\D/g, '');
-        }
+        const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid;
+        if (mentioned?.length) target = mentioned[0].split('@')[0];
+        else if (args[0]) target = args[0].replace(/\D/g, '');
       }
 
       if (!target) {
@@ -83,7 +80,7 @@ export default {
       );
 
     } catch (err) {
-      console.error('Erreur unban.js :', err);
+      console.error('❌ Erreur unban.js :', err);
       return kaya.sendMessage(
         m.chat,
         { text: '❌ Impossible de débannir l\'utilisateur.', contextInfo },

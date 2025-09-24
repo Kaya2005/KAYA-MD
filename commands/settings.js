@@ -1,5 +1,4 @@
 // ==================== commands/settings.js ====================
-import checkAdminOrOwner from '../utils/checkAdmin.js';
 import config from '../config.js';
 import { contextInfo } from '../utils/contextInfo.js';
 
@@ -7,11 +6,11 @@ export default {
   name: 'settings',
   description: 'Voir et modifier les paramètres du bot',
   category: 'Owner',
+  ownerOnly: true, // ✅ le handler bloque déjà les non-owners
 
-  run: async (kaya, m, msg, store, args) => {
-    // ✅ Vérifie si le sender est owner
-    const permissions = await checkAdminOrOwner(kaya, m.chat, m.sender);
-    if (!permissions.isOwner) {
+  run: async (kaya, m, msg, store, args, context) => {
+    // ✅ Vérifie que seul le propriétaire peut utiliser
+    if (!context.isOwner) {
       return kaya.sendMessage(
         m.chat,
         { text: '🚫 Cette commande est réservée au propriétaire du bot.', contextInfo },
@@ -55,31 +54,31 @@ export default {
       case '.prefix':
         if (!value) return kaya.sendMessage(m.chat, { text: '❌ Indique le nouveau préfixe', contextInfo }, { quoted: m });
         config.PREFIX = value;
-        config.saveConfig({ PREFIX: value });
+        if (config.saveConfig) config.saveConfig({ PREFIX: value });
         return kaya.sendMessage(m.chat, { text: `✅ Préfixe mis à jour : ${value}`, contextInfo }, { quoted: m });
 
       case '.botmode':
         if (!['public','private'].includes(value)) return kaya.sendMessage(m.chat, { text: '❌ Valeur invalide. public|private', contextInfo }, { quoted: m });
         config.publicBot = value === 'public';
-        config.saveConfig({ publicBot: value === 'public' });
+        if (config.saveConfig) config.saveConfig({ publicBot: value === 'public' });
         return kaya.sendMessage(m.chat, { text: `✅ Mode du bot : ${value}`, contextInfo }, { quoted: m });
 
       case '.autoread':
         if (!['on','off'].includes(value)) return kaya.sendMessage(m.chat, { text: '❌ Valeur invalide. on|off', contextInfo }, { quoted: m });
         config.autoRead = value === 'on';
-        config.saveConfig({ autoRead: value === 'on' });
+        if (config.saveConfig) config.saveConfig({ autoRead: value === 'on' });
         return kaya.sendMessage(m.chat, { text: `✅ AutoRead : ${value}`, contextInfo }, { quoted: m });
 
       case '.restrict':
         if (!['on','off'].includes(value)) return kaya.sendMessage(m.chat, { text: '❌ Valeur invalide. on|off', contextInfo }, { quoted: m });
         config.restrict = value === 'on';
-        config.saveConfig({ restrict: value === 'on' });
+        if (config.saveConfig) config.saveConfig({ restrict: value === 'on' });
         return kaya.sendMessage(m.chat, { text: `✅ Restrict : ${value}`, contextInfo }, { quoted: m });
 
       case '.botimage':
         if (!value) return kaya.sendMessage(m.chat, { text: '❌ Fournis le lien de la nouvelle image', contextInfo }, { quoted: m });
         config.botImage = value;
-        config.saveConfig({ botImage: value });
+        if (config.saveConfig) config.saveConfig({ botImage: value });
         return kaya.sendMessage(m.chat, { text: `✅ Photo du bot mise à jour : ${value}`, contextInfo }, { quoted: m });
 
       default:
