@@ -1,3 +1,4 @@
+// ================== CORE ==================
 import fs from 'fs';
 import path from 'path';
 import chalk from 'chalk';
@@ -5,17 +6,26 @@ import pino from 'pino';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
+// ================== CONFIG & GLOBALS ==================
+import config from './config.js';
+import './system/globals.js';
+import { loadBotModes } from './system/botStatus.js';
+loadBotModes();
+
+// ================== ASSETS & UTILS ==================
 import { connectionMessage, getBotImage } from './system/botAssets.js';
 import { checkUpdate } from './system/updateChecker.js';
-import config from './config.js';
-// ================== GLOBALS INIT ==================
-import './system/globals.js';       // ⚡ Initialise owner, bannedUsers, botModes, etc.
-import { loadBotModes } from './system/botStatus.js'; 
-loadBotModes();                      // ⚡ Charge les modes depuis le fichier JSON
-
-import handleCommand, { smsg, handleParticipantUpdate } from './handler.js';
 import { loadSessionFromMega } from './system/megaSession.js';
 
+// ================== HANDLER ==================
+import handleCommand, {
+  smsg,
+  loadCommands,
+  commands,
+  handleParticipantUpdate
+} from './handler.js';
+
+// ================== BAILEYS ==================
 import makeWASocket, {
   Browsers,
   DisconnectReason,
@@ -29,94 +39,120 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // ================== CRYPTO FIX ==================
-if (!globalThis.crypto?.subtle) globalThis.crypto = crypto.webcrypto;
+if (!globalThis.crypto?.subtle) {
+  globalThis.crypto = crypto.webcrypto;
+}
 
 // ================== GLOBAL CONFIG ==================
+global.owner ??= [config.OWNER_NUMBER];
+global.SESSION_ID ??= config.SESSION_ID;
 
-global.owner = [config.OWNER_NUMBER];
-global.SESSION_ID = config.SESSION_ID;
+global.botModes ??= {
+  typing: false,
+  recording: false,
+  autoreact: { enabled: false },
+  autoread: { enabled: false }
+};
 
-// ================== GLOBAL MODES ==================
-global.botModes = { typing: false, recording: false, autoreact: { enabled: false } };
-global.autoStatus = false;
+global.autoStatus ??= false;
+global.botStartTime = Date.now();
 
 // ================== SESSION ==================
 const sessionDir = path.join(__dirname, 'session');
 const credsPath = path.join(sessionDir, 'creds.json');
-if (!fs.existsSync(sessionDir)) fs.mkdirSync(sessionDir, { recursive: true });
 
-// ================== LOAD WELCOME MODULE ==================
-try { await import('./commands/welcome.js'); }
-catch (err) { console.error('❌ Erreur import welcome:', err); }
+if (!fs.existsSync(sessionDir)) {
+  fs.mkdirSync(sessionDir, { recursive: true });
+}
 
 // ================== START BOT ==================
 async function startBot() {
   try {
+    // ===== Load session Mega (si existante)
     await loadSessionFromMega(credsPath);
 
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
     const { version } = await fetchLatestBaileysVersion();
 
     const sock = makeWASocket({
-      logger: pino({ level: 'silent' }),
       auth: state,
       version,
+      logger: pino({ level: 'silent' }),
       browser: Browsers.macOS('Safari'),
       printQRInTerminal: false
     });
 
-    // ================== JID FIX ==================
-    sock.decodeJid = (jid) => {
+    // ================== JID NORMALIZER ==================
+    sock.decodeJid = jid => {
       if (!jid) return jid;
       if (/:\d+@/gi.test(jid)) {
-        const decode = jidDecode(jid) || {};
-        return decode.user && decode.server ? `${decode.user}@${decode.server}` : jid;
+        const d = jidDecode(jid) || {};
+        return d.user && d.server ? `${d.user}@${d.server}` : jid;
       }
       return jid;
     };
 
-    // ================== CONNECTION UPDATE ==================
+    // ================== LOAD COMMANDS (ONCE) ==================
+    await loadCommands();
+    console.log(chalk.cyan(`📂 Commandes chargées : ${Object.keys(commands).length}`));
+
+    // ================== CONNECTION ==================
     sock.ev.on('connection.update', async ({ connection, lastDisconnect }) => {
       if (connection === 'open') {
         console.log(chalk.green('✅ KAYA-MD CONNECTÉ'));
+
         try {
-          const botJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-          await sock.sendMessage(botJid, { image: { url: getBotImage() }, caption: connectionMessage() });
-        } catch (err) { console.error('❌ Erreur message connexion:', err); }
+          const jid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+          await sock.sendMessage(jid, {
+            image: { url: getBotImage() },
+            caption: connectionMessage()
+          });
+        } catch {}
+
         await checkUpdate(sock);
       }
+
       if (connection === 'close') {
         const reason = lastDisconnect?.error?.output?.statusCode;
         console.log(chalk.red('❌ Déconnecté :'), reason);
-        if (reason !== DisconnectReason.loggedOut) setTimeout(startBot, 5000);
-        else console.log(chalk.red('🚫 Session expirée - supprimez session/creds.json'));
+
+        if (reason !== DisconnectReason.loggedOut) {
+          setTimeout(startBot, 5000);
+        } else {
+          console.log(chalk.red('🚫 Session expirée – supprime session/creds.json'));
+        }
       }
     });
 
     // ================== MESSAGES ==================
     sock.ev.on('messages.upsert', async ({ messages }) => {
-      for (const msg of messages) {
-        if (!msg?.message) continue;
-        const m = smsg(sock, msg);
+      if (!messages?.length) return;
 
-        // ✅ Commandes traitées en priorité
-        handleCommand(sock, m).catch(err => console.error('❌ Handler error:', err));
+      const valid = messages.filter(m => m?.message);
+
+      for (const msg of valid) {
+        try {
+          const m = smsg(sock, msg);
+          if (!m.body?.trim()) continue;
+          await handleCommand(sock, msg);
+        } catch (err) {
+          console.error('❌ Message handler error:', err);
+        }
       }
     });
 
-    // ================== PARTICIPANT UPDATE ==================
-    sock.ev.on('group-participants.update', async (update) => {
-      try { await handleParticipantUpdate(sock, update); }
-      catch (err) { console.error('❌ Participant update error:', err); }
-    });
+    // ================== GROUP EVENTS ==================
+    sock.ev.on('group-participants.update', update =>
+      handleParticipantUpdate(sock, update).catch(() => {})
+    );
 
-    // ================== SAVE CREDS ==================
+    // ================== CREDS ==================
     sock.ev.on('creds.update', saveCreds);
 
     return sock;
 
   } catch (err) {
-    console.error('❌ Erreur fatale:', err);
+    console.error('❌ ERREUR FATALE:', err);
     process.exit(1);
   }
 }
@@ -125,5 +161,9 @@ async function startBot() {
 startBot();
 
 // ================== GLOBAL ERRORS ==================
-process.on('unhandledRejection', err => console.error('UnhandledRejection:', err));
-process.on('uncaughtException', err => console.error('UncaughtException:', err));
+process.on('unhandledRejection', err =>
+  console.error('UnhandledRejection:', err)
+);
+process.on('uncaughtException', err =>
+  console.error('UncaughtException:', err)
+);
