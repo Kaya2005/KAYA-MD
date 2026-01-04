@@ -1,3 +1,4 @@
+// ==================== commands/antipromote.js ====================
 import fs from 'fs';
 import path from 'path';
 import checkAdminOrOwner from '../system/checkAdmin.js';
@@ -21,78 +22,69 @@ const processing = new Set();
 
 export default {
   name: 'antipromote',
-  description: '🚫 Empêche la promotion automatique des membres',
-  category: 'Sécurité',
+  description: '🚫 Prevent automatic promotion of members',
+  category: 'Groupe',
   group: true,
   admin: true,
   botAdmin: true,
 
   run: async (kaya, m, args) => {
-    if (!m.isGroup) return kaya.sendMessage(m.chat, { text: '❌ Cette commande fonctionne uniquement dans un groupe.', contextInfo }, { quoted: m });
+    if (!m.isGroup) 
+      return kaya.sendMessage(m.chat, { text: '❌ This command only works in groups.', contextInfo }, { quoted: m });
 
-    // ✅ Vérification admin/owner via checkAdminOrOwner
     const permissions = await checkAdminOrOwner(kaya, m.chat, m.sender);
-    if (!permissions.isAdminOrOwner) return kaya.sendMessage(m.chat, { text: '🚫 Seuls les Admins ou le Propriétaire peuvent activer/désactiver l\'anti-promote.', contextInfo }, { quoted: m });
+    if (!permissions.isAdminOrOwner) 
+      return kaya.sendMessage(m.chat, { text: '🚫 Only group admins or the owner can toggle AntiPromote.', contextInfo }, { quoted: m });
 
     const chatId = m.chat;
     const action = args[0]?.toLowerCase();
 
     if (action === 'on') {
-      antiPromoteData[chatId] = { enabled: true, timestamp: Date.now() };
+      antiPromoteData[chatId] = { enabled: true };
       saveAntiPromote();
-      return kaya.sendMessage(m.chat, { text: '✅ *AntiPromote activé*', contextInfo }, { quoted: m });
+      return kaya.sendMessage(m.chat, { text: '✅ *AntiPromote ENABLED*', contextInfo }, { quoted: m });
     }
 
     if (action === 'off') {
       delete antiPromoteData[chatId];
       saveAntiPromote();
-      return kaya.sendMessage(m.chat, { text: '❌ *AntiPromote désactivé*', contextInfo }, { quoted: m });
+      return kaya.sendMessage(m.chat, { text: '❌ *AntiPromote DISABLED*', contextInfo }, { quoted: m });
     }
 
     if (action === 'status') {
       const isActive = antiPromoteData[chatId]?.enabled || false;
-      const statusText = isActive ? '✅ *AntiPromote ACTIVÉ*' : '❌ *AntiPromote DÉSACTIVÉ*';
-      return kaya.sendMessage(m.chat, { text: statusText, contextInfo }, { quoted: m });
+      return kaya.sendMessage(m.chat, { text: isActive ? '✅ *AntiPromote ENABLED*' : '❌ *AntiPromote DISABLED*', contextInfo }, { quoted: m });
     }
 
-    return kaya.sendMessage(m.chat, { text: 'ℹ️ Utilisation : .antipromote on/off/status', contextInfo }, { quoted: m });
+    return kaya.sendMessage(m.chat, { text: 'ℹ️ Usage: .antipromote on/off/status', contextInfo }, { quoted: m });
   },
 
   participantUpdate: async (kaya, update) => {
-    try {
-      const chatId = update.id;
-      const participants = update.participants;
-      const action = update.action;
+    const chatId = update.id;
+    const participants = update.participants;
+    const action = update.action;
+    if (!antiPromoteData[chatId]?.enabled) return;
+    if (action !== 'promote') return;
 
-      if (!antiPromoteData[chatId]?.enabled) return;
-      if (action !== 'promote') return;
+    const botId = kaya.user.id;
+    for (const user of participants) {
+      if (user === botId) continue;
+      const key = `${chatId}-${user}-promote`;
+      if (processing.has(key)) continue;
+      processing.add(key);
 
-      const botId = kaya.user.id;
-
-      for (const user of participants) {
-        if (user === botId) continue;
-        const key = `${chatId}-${user}-promote`;
-        if (processing.has(key)) continue;
-        processing.add(key);
-
-        setTimeout(async () => {
-          try {
-            await kaya.groupParticipantsUpdate(chatId, [user], 'demote');
-            await kaya.sendMessage(chatId, {
-              text: `🚫 *AntiPromote Actif*\n@${user.split('@')[0]} rétrogradé automatiquement.`,
-              mentions: [user],
-              contextInfo
-            });
-          } catch (err) {
-            console.error('❌ AntiPromote participantUpdate error:', err);
-          } finally {
-            processing.delete(key);
-          }
-        }, 1000);
-      }
-
-    } catch (err) {
-      console.error('❌ participantUpdate antipromote error:', err);
+      setTimeout(async () => {
+        try {
+          await kaya.groupParticipantsUpdate(chatId, [user], 'demote');
+          await kaya.sendMessage(chatId, {
+            text: `🚫 *AntiPromote Active*\n@${user.split('@')[0]} has been automatically demoted.`,
+            mentions: [user],
+            contextInfo
+          });
+        } finally {
+          processing.delete(key);
+        }
+      }, 1000);
     }
   }
 };

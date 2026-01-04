@@ -6,13 +6,13 @@ import checkAdminOrOwner from "../system/checkAdmin.js";
 export default {
   name: "antitag",
   alias: ["anti-tag", "tagall"],
-  description: "🚫 Active ou désactive l’anti-tagall",
+  description: "🚫 Configure the anti-tagall system",
   category: "Groupe",
   group: true,
   admin: true,
   botAdmin: true,
 
-  // ==================== COMMANDE ====================
+  // ==================== COMMAND ====================
   run: async (kaya, m, args) => {
     try {
       const chatId = m.chat;
@@ -20,40 +20,49 @@ export default {
       if (!m.isGroup) {
         return kaya.sendMessage(
           chatId,
-          { text: "❌ Cette commande fonctionne uniquement dans un groupe.", contextInfo },
+          { text: "❌ This command only works in groups.", contextInfo },
           { quoted: m }
         );
       }
 
       const action = args[0]?.toLowerCase();
 
+      // 📖 Help menu
       if (!action) {
         return kaya.sendMessage(
           chatId,
           {
-            text:
-`🚫 *ANTITAG*
+            text: `🚫 *ANTITAG SYSTEM*
 
-.antitag on        → Activer (action: delete)
-.antitag off       → Désactiver
-.antitag set delete|kick
-.antitag get       → Voir le statut`,
+.antitag on
+→ Enable antitag (default action: DELETE)
+
+.antitag off
+→ Disable antitag
+
+.antitag set delete
+→ Delete tagall messages
+
+.antitag set kick
+→ Kick user on tagall
+
+.antitag get
+→ Show antitag status`,
             contextInfo
           },
           { quoted: m }
         );
       }
 
-      // 📊 GET (autorisé à tous)
+      // 📊 GET STATUS
       if (action === "get") {
         const data = await getAntitag(chatId);
         return kaya.sendMessage(
           chatId,
           {
             text:
-`📊 *STATUT ANTITAG*
-
-• État   : ${data?.enabled ? "ON" : "OFF"}
+`📊 *ANTITAG STATUS*
+• State  : ${data?.enabled ? "ON ✅" : "OFF ❌"}
 • Action : ${data?.action || "—"}`,
             contextInfo
           },
@@ -61,51 +70,40 @@ export default {
         );
       }
 
-      // 🔐 VÉRIFICATION ADMIN / OWNER
+      // 🔐 Admin / Owner check
       const check = await checkAdminOrOwner(kaya, chatId, m.sender);
       if (!check.isAdminOrOwner) {
         return kaya.sendMessage(
           chatId,
-          { text: "🚫 Admin ou Owner uniquement.", contextInfo },
+          { text: "🚫 Only admins or owner can use this command.", contextInfo },
           { quoted: m }
         );
       }
 
-      // ================= ACTIONS =================
+      // ⚙️ ACTIONS
       switch (action) {
-        case "on": {
-          const current = await getAntitag(chatId);
-          if (current?.enabled) {
-            return kaya.sendMessage(
-              chatId,
-              { text: "✅ Antitag est déjà activé.", contextInfo },
-              { quoted: m }
-            );
-          }
-
+        case "on":
           await setAntitag(chatId, true, "delete");
           return kaya.sendMessage(
             chatId,
-            { text: "✅ Antitag activé (action : DELETE).", contextInfo },
+            { text: "✅ Antitag enabled (action: DELETE).", contextInfo },
             { quoted: m }
           );
-        }
 
-        case "off": {
+        case "off":
           await removeAntitag(chatId);
           return kaya.sendMessage(
             chatId,
-            { text: "❌ Antitag désactivé.", contextInfo },
+            { text: "❌ Antitag disabled.", contextInfo },
             { quoted: m }
           );
-        }
 
         case "set": {
           const mode = args[1];
           if (!["delete", "kick"].includes(mode)) {
             return kaya.sendMessage(
               chatId,
-              { text: "⚠️ Choisis : delete ou kick.", contextInfo },
+              { text: "⚠️ Usage: .antitag set delete | kick", contextInfo },
               { quoted: m }
             );
           }
@@ -113,7 +111,7 @@ export default {
           await setAntitag(chatId, true, mode);
           return kaya.sendMessage(
             chatId,
-            { text: `⚙️ Action Antitag définie sur : ${mode.toUpperCase()}`, contextInfo },
+            { text: `⚙️ Antitag action set to: ${mode.toUpperCase()}`, contextInfo },
             { quoted: m }
           );
         }
@@ -121,16 +119,16 @@ export default {
         default:
           return kaya.sendMessage(
             chatId,
-            { text: "❓ Commande inconnue – tape .antitag", contextInfo },
+            { text: "❓ Unknown option. Type .antitag", contextInfo },
             { quoted: m }
           );
       }
 
     } catch (err) {
-      console.error("❌ ANTITAG ERROR:", err);
+      console.error("❌ ANTITAG COMMAND ERROR:", err);
       await kaya.sendMessage(
         m.chat,
-        { text: "❌ Erreur lors du traitement Antitag.", contextInfo },
+        { text: "❌ Error while processing antitag command.", contextInfo },
         { quoted: m }
       );
     }

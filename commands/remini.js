@@ -4,87 +4,88 @@ import { downloadContentFromMessage } from '@whiskeysockets/baileys';
 import { uploadImage } from '../lib/uploadImage.js';
 
 async function getQuotedOrOwnImageUrl(sock, message) {
-  // 1) Image citée (quoted)
   const quoted = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+
   if (quoted?.imageMessage) {
     const stream = await downloadContentFromMessage(quoted.imageMessage, 'image');
     const chunks = [];
     for await (const chunk of stream) chunks.push(chunk);
-    const buffer = Buffer.concat(chunks);
-    return await uploadImage(buffer);
+    return uploadImage(Buffer.concat(chunks));
   }
 
-  // 2) Image dans le message courant
   if (message.message?.imageMessage) {
     const stream = await downloadContentFromMessage(message.message.imageMessage, 'image');
     const chunks = [];
     for await (const chunk of stream) chunks.push(chunk);
-    const buffer = Buffer.concat(chunks);
-    return await uploadImage(buffer);
+    return uploadImage(Buffer.concat(chunks));
   }
 
   return null;
 }
 
-function isValidUrl(string) {
-  try { new URL(string); return true; } 
-  catch (_) { return false; }
+function isValidUrl(url) {
+  try { new URL(url); return true; } catch { return false; }
 }
 
 export default {
   name: 'remini',
-  description: '✨ Améliore une image via Remini AI',
-  category: 'Fun',
-  ownerOnly: false,
+  alias: ['enhance', 'hd'],
+  category: 'Image',
+  description: '✨ Améliore la qualité d’une image (AI)',
+  usage: '.remini <url> | reply image',
 
-  run: async (sock, m, args) => {
+  async run(sock, m, args) {
     try {
-      let imageUrl = null;
+      let imageUrl;
 
-      // Vérifie si args contient une URL
-      if (args.length > 0) {
+      // 🌐 URL fournie
+      if (args.length) {
         const url = args.join(' ');
         if (!isValidUrl(url)) {
-          return sock.sendMessage(m.chat, { 
-            text: '❌ URL invalide.\nUsage : `.remini <image_url>`' 
-          }, { quoted: m });
+          return sock.sendMessage(m.chat,
+            { text: '❌ URL invalide.\nEx: `.remini https://image.jpg`' },
+            { quoted: m }
+          );
         }
         imageUrl = url;
-      } else {
-        // Essaye d'obtenir l'image du message ou message cité
+      } 
+      // 🖼️ Image envoyée / reply
+      else {
         imageUrl = await getQuotedOrOwnImageUrl(sock, m);
         if (!imageUrl) {
-          return sock.sendMessage(m.chat, { 
-            text: '📸 *Remini AI Enhancement*\n\nUsage:\n• `.remini <image_url>`\n• Répondre à une image avec `.remini`\n• Envoyer une image avec `.remini`' 
-          }, { quoted: m });
+          return sock.sendMessage(m.chat,
+            { text: '📸 Reply à une image ou envoie-en une avec `.remini`' },
+            { quoted: m }
+          );
         }
       }
 
-      // Appel à l'API Remini
-      const apiUrl = `https://api.princetechn.com/api/tools/remini?apikey=prince_tech_api_azfsbshfb&url=${encodeURIComponent(imageUrl)}`;
-      const response = await axios.get(apiUrl, { timeout: 60000 });
+      // ✅ API REMINI / UPSCALE STABLE
+      const api = `https://api.axyz.my.id/api/upscale?url=${encodeURIComponent(imageUrl)}`;
+      const res = await axios.get(api, {
+        responseType: 'arraybuffer',
+        timeout: 60000
+      });
 
-      if (response.data?.success && response.data.result?.image_url) {
-        const enhancedImage = await axios.get(response.data.result.image_url, { responseType: 'arraybuffer', timeout: 30000 });
-        if (enhancedImage.status === 200 && enhancedImage.data) {
-          await sock.sendMessage(m.chat, {
-            image: enhancedImage.data,
-            caption: '✨ *Image améliorée avec succès!* \n\n𝗘𝗡𝗛𝗔𝗡𝗖𝗘𝗗 𝗕𝗬 𝗞𝗡𝗜𝗚𝗛𝗧-𝗕𝗢𝗧'
-          }, { quoted: m });
-        } else throw new Error('Impossible de télécharger l’image améliorée');
-      } else throw new Error(response.data?.result?.message || 'Échec de l’amélioration de l’image');
+      // sécurité : vérifier que c’est bien une image
+      if (!res.headers['content-type']?.includes('image')) {
+        throw new Error('API n’a pas renvoyé une image');
+      }
 
-    } catch (error) {
-      console.error('Remini Error:', error.message);
+      await sock.sendMessage(m.chat, {
+        image: res.data,
+        caption: '✨ *Image améliorée avec succès !*\n\n𝗞𝗔𝗬𝗔-𝗠𝗗'
+      }, { quoted: m });
 
-      let errorMessage = '❌ Échec de l’amélioration de l’image.';
-      if (error.response?.status === 429) errorMessage = '⏰ Limite API atteinte. Réessaie plus tard.';
-      else if (error.response?.status === 400) errorMessage = '❌ URL ou format de l’image invalide.';
-      else if (error.response?.status === 500) errorMessage = '🔧 Erreur serveur. Réessaie plus tard.';
-      else if (error.code === 'ECONNABORTED') errorMessage = '⏰ Temps de réponse dépassé. Réessaie.';
-      else if (error.message.includes('ENOTFOUND') || error.message.includes('ECONNREFUSED')) errorMessage = '🌐 Erreur réseau. Vérifie ta connexion.';
+    } catch (err) {
+      console.error('[REMINI ERROR]', err);
 
-      await sock.sendMessage(m.chat, { text: errorMessage }, { quoted: m });
+      let msg = '❌ Impossible d’améliorer l’image.';
+      if (err.code === 'ECONNABORTED') msg = '⏰ Timeout. Réessaie.';
+      if (err.response?.status === 429) msg = '🚦 Trop de requêtes.';
+      if (err.message.includes('image')) msg = '❌ Image invalide.';
+
+      await sock.sendMessage(m.chat, { text: msg }, { quoted: m });
     }
   }
 };

@@ -1,48 +1,71 @@
 // ==================== commands/revoke.js ====================
 import checkAdminOrOwner from '../system/checkAdmin.js';
+import { contextInfo } from '../system/contextInfo.js';
 
 export default {
   name: 'revoke',
-  description: '⚡ Rétire silencieusement les droits d’admin à un membre',
+  alias: ['demote', 'unadmin'],
+  description: '🔻 Demotes an admin in the group (silent)',
   category: 'Groupe',
   group: true,
   admin: true,
   botAdmin: true,
 
-  run: async (kaya, m, msg, store, args) => {
+  run: async (kaya, m, args) => {
     try {
       if (!m.isGroup) return;
 
-      // 🔹 Vérification admin / owner
+      // 🔹 Check if sender is admin / owner
       const permissions = await checkAdminOrOwner(kaya, m.chat, m.sender);
-      if (!permissions.isAdminOrOwner) return;
-
-      // 🔹 Récupération de la cible : mention, réponse ou numéro
-      let target = m.message?.[Object.keys(m.message)[0]]?.contextInfo?.mentionedJid?.[0]
-                  || m.quoted?.sender
-                  || (args[0] ? (args[0].includes('@') ? args[0] : `${args[0]}@s.whatsapp.net`) : null);
-
-      if (!target) {
-        return kaya.sendMessage(m.chat, { text: '⚙️ Usage : `.revoke @utilisateur` ou répondre à son message.' }, { quoted: m });
+      if (!permissions.isAdminOrOwner) {
+        return kaya.sendMessage(
+          m.chat,
+          { text: "🚫 Only group Admins or the Owner can use `.revoke`.", contextInfo },
+          { quoted: m }
+        );
       }
 
-      // 🔹 Vérification que la cible n’est pas un admin
-      const groupMetadata = await kaya.groupMetadata(m.chat);
-      const groupAdmins = groupMetadata.participants
-        .filter(p => p.admin === 'admin' || p.admin === 'superadmin')
-        .map(p => p.id);
+      // ==================== TARGET ====================
+      let target = null;
 
-      if (!groupAdmins.includes(target)) return; // cible déjà non-admin
+      // 1️⃣ Mentioned user
+      if (m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.length > 0) {
+        target = m.message.extendedTextMessage.contextInfo.mentionedJid[0];
+      }
+      // 2️⃣ Reply to a message
+      else if (m.message?.extendedTextMessage?.contextInfo?.participant) {
+        target = m.message.extendedTextMessage.contextInfo.participant;
+      }
+      // 3️⃣ User by number
+      else if (args[0]) {
+        target = args[0].replace(/[^0-9]/g, '') + '@s.whatsapp.net';
+      }
 
-      // 🔹 Rétrogradation silencieuse
+      if (!target) {
+        return kaya.sendMessage(
+          m.chat,
+          { text: "⚠️ Target not found for demotion.", contextInfo },
+          { quoted: m }
+        );
+      }
+
+      // 🚫 Security: Do not demote the group owner
+      const ownerJid = m.chat.split('@')[0] + '@s.whatsapp.net';
+      if (permissions.isOwner && target === ownerJid) return;
+
+      // ✅ Silent demotion
       await kaya.groupParticipantsUpdate(m.chat, [target], 'demote');
 
-      // ❌ Aucun message envoyé au groupe
+      // ❌ No message sent to the group
       return;
 
     } catch (err) {
-      console.error('❌ Erreur revoke :', err);
-      return;
+      console.error('❌ revoke error:', err);
+      return kaya.sendMessage(
+        m.chat,
+        { text: '❌ Unable to demote this member.', contextInfo },
+        { quoted: m }
+      );
     }
   }
 };

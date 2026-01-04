@@ -1,50 +1,54 @@
-// ==================== commands/resetlink.js ====================
+// ================= commands/resetlink.js ====================
 import checkAdminOrOwner from '../system/checkAdmin.js';
+import decodeJid from '../system/decodeJid.js';
+import { contextInfo } from '../system/contextInfo.js';
 
 export default {
   name: 'resetlink',
   alias: ['grouplink', 'linkreset'],
-  description: 'Réinitialise le lien d’invitation du groupe',
+  description: 'Resets the group invite link',
   category: 'Groupe',
   group: true,
   admin: true,
   botAdmin: true,
+  usage: '.resetlink',
 
-  async run(kaya, m, args) {
+  run: async (kaya, m) => {
     try {
-      const chatId = m.chat;
+      if (!m.isGroup) return;
 
-      if (!m.isGroup) return kaya.sendMessage(chatId, { text: '❌ Cette commande fonctionne uniquement dans un groupe.' }, { quoted: m });
+      const chatId = decodeJid(m.chat);
+      const sender = decodeJid(m.sender);
 
-      // 🔹 Vérification admin / owner
-      const permissions = await checkAdminOrOwner(kaya, chatId, m.sender);
-      if (!permissions.isAdminOrOwner) {
-        return kaya.sendMessage(chatId, { text: '🚫 Seuls les Admins ou le Propriétaire peuvent utiliser cette commande.' }, { quoted: m });
+      // 🔐 Check ADMIN / OWNER
+      const check = await checkAdminOrOwner(kaya, chatId, sender);
+      if (!check.isAdminOrOwner) {
+        return kaya.sendMessage(
+          chatId,
+          { text: '🚫 Only group Admins or the Owner can use this command.', contextInfo },
+          { quoted: m }
+        );
       }
 
-      // 🔹 Vérifier si le bot est admin
-      const groupMetadata = await kaya.groupMetadata(chatId);
-      const botId = kaya.user.id;
-      const isBotAdmin = groupMetadata.participants
-        .filter(p => p.admin)
-        .map(p => p.id)
-        .includes(botId);
+      // 🔁 Reset the invite link (without displaying it)
+      await kaya.groupRevokeInvite(chatId);
 
-      if (!isBotAdmin) {
-        return kaya.sendMessage(chatId, { text: '❌ Le bot doit être admin pour réinitialiser le lien du groupe.' }, { quoted: m });
-      }
+      return kaya.sendMessage(
+        chatId,
+        {
+          text: '✅ The group invite link has been successfully reset!',
+          contextInfo
+        },
+        { quoted: m }
+      );
 
-      // 🔹 Réinitialiser le lien
-      const newCode = await kaya.groupRevokeInvite(chatId);
-
-      // 🔹 Envoyer le nouveau lien
-      await kaya.sendMessage(chatId, {
-        text: `✅ Le lien du groupe a été réinitialisé avec succès.\n\n📌 Nouveau lien :\nhttps://chat.whatsapp.com/${newCode}`
-      }, { quoted: m });
-
-    } catch (error) {
-      console.error('❌ Erreur resetlink command:', error);
-      await kaya.sendMessage(m.chat, { text: '❌ Impossible de réinitialiser le lien du groupe.' }, { quoted: m });
+    } catch (err) {
+      console.error('❌ resetlink error:', err);
+      return kaya.sendMessage(
+        m.chat,
+        { text: '❌ An error occurred while resetting the group link.', contextInfo },
+        { quoted: m }
+      );
     }
   }
 };

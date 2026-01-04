@@ -1,68 +1,66 @@
-// ==================== commands/ai.js ====================
-import axios from 'axios';
 import fetch from 'node-fetch';
 
 export default {
   name: 'ai',
-  description: '🤖 Répond à vos questions via GPT ou Gemini',
-  category: 'Utilitaires',
-  ownerOnly: false, // facultatif, selon besoin
+  alias: ['gpt', 'chat'],
+  category: 'AI',
+  description: 'Parler avec une intelligence artificielle',
+  usage: '.ai <question> | reply à un message',
 
-  run: async (sock, m, args, store, commandName) => {
+  run: async (kaya, m, args) => {
     try {
-      // Construire la question à partir des args
-      const query = args?.join(' ').trim();
-      if (!query) {
-        return sock.sendMessage(
+      let prompt = '';
+
+      // ================== RÉCUP TEXTE (Baileys v7 RC6) ==================
+      if (m.quoted?.message) {
+        const msg = m.quoted.message;
+        prompt =
+          msg.extendedTextMessage?.text || // reply texte
+          msg.imageMessage?.caption ||     // caption image
+          msg.videoMessage?.caption ||     // caption vidéo
+          msg.documentMessage?.caption ||  // caption document
+          '';
+      } else {
+        prompt = args.join(' ');
+      }
+
+      if (!prompt.trim()) {
+        return kaya.sendMessage(
           m.chat,
-          { text: "❌ Fournis une question après la commande.\nExemple : .gpt écris un code HTML de base" },
+          { text: '❌ Pose une question ou reply à un message.\n\nExemple:\n.ai Explique JavaScript' },
           { quoted: m }
         );
       }
 
-      // Réaction "processing"
-      await sock.sendMessage(m.chat, { react: { text: '🤖', key: m.key } });
+      // ⏳ Message d’attente
+      await kaya.sendMessage(
+        m.chat,
+        { text: '🤖 Réflexion en cours...' },
+        { quoted: m }
+      );
 
-      // 🔹 Commande GPT
-      if (commandName === 'gpt') {
-        const response = await axios.get(
-          `https://api.dreaded.site/api/chatgpt?text=${encodeURIComponent(query)}`
-        );
+      // ================== APPEL API ==================
+      const res = await fetch(
+        `https://shizoapi.onrender.com/api/ai/chat?query=${encodeURIComponent(prompt)}`
+      );
 
-        const answer = response.data?.result?.prompt;
-        if (!answer) throw new Error('Réponse GPT invalide');
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
 
-        return sock.sendMessage(m.chat, { text: answer }, { quoted: m });
-      }
+      const data = await res.json();
+      const reply = data?.result || data?.response || '❌ Aucune réponse trouvée.';
 
-      // 🔹 Commande Gemini
-      if (commandName === 'gemini') {
-        const apis = [
-          `https://vapis.my.id/api/gemini?q=${encodeURIComponent(query)}`,
-          `https://api.siputzx.my.id/api/ai/gemini-pro?content=${encodeURIComponent(query)}`,
-          `https://api.ryzendesu.vip/api/ai/gemini?text=${encodeURIComponent(query)}`,
-          `https://api.dreaded.site/api/gemini2?text=${encodeURIComponent(query)}`,
-          `https://api.giftedtech.my.id/api/ai/geminiai?apikey=gifted&q=${encodeURIComponent(query)}`,
-          `https://api.giftedtech.my.id/api/ai/geminiaipro?apikey=gifted&q=${encodeURIComponent(query)}`
-        ];
-
-        for (const api of apis) {
-          try {
-            const res = await fetch(api);
-            const data = await res.json();
-            const answer = data.message || data.data || data.answer || data.result;
-            if (answer) return sock.sendMessage(m.chat, { text: answer }, { quoted: m });
-          } catch { continue; }
-        }
-
-        throw new Error('Toutes les APIs Gemini ont échoué');
-      }
+      // ================== ENVOI ==================
+      await kaya.sendMessage(
+        m.chat,
+        { text: reply },
+        { quoted: m }
+      );
 
     } catch (err) {
-      console.error('❌ Erreur commande AI :', err);
-      return sock.sendMessage(
+      console.error('❌ AI command error:', err);
+      await kaya.sendMessage(
         m.chat,
-        { text: "⚠️ Impossible d'obtenir une réponse pour le moment. Réessaie plus tard." },
+        { text: '❌ Erreur AI. L’API peut être indisponible ou votre message vide.' },
         { quoted: m }
       );
     }

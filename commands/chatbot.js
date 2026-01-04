@@ -12,7 +12,7 @@ const file = path.join(__dirname, '../data/chatbot.json');
 export default {
   name: 'chatbot',
   description: 'Active/désactive le ChatBot : privé, groupes ou global (owner uniquement)',
-  category: 'IA',
+    category: 'AI',
 
   async execute(Kaya, m, args) {
     try {

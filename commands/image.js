@@ -1,85 +1,51 @@
-import axios from 'axios';
-import { contextInfo } from '../system/contextInfo.js';
+import axios from "axios";
+import { load } from "cheerio";
 
 export default {
-  name: 'img',
-  alias: ['image', 'img'],
-  description: 'Génère une image à partir d’un prompt',
-  category: 'Fun',
+  name: "img",
+  alias: ["image"],
+  category: "Download",
+  description: "Télécharge une image depuis le web",
+  usage: ".img <mot-clé>",
+  run: async (kaya, m, args) => {
+    if (!args[0]) {
+      return kaya.sendMessage(
+        m.chat,
+        { text: "❌ Indique un mot-clé, ex: .img naruto" },
+        { quoted: m }
+      );
+    }
 
-  async run(kaya, m, args) {
+    const query = args.join(" ");
     try {
-      const prompt = args.join(' ').trim();
-      if (!prompt) {
+      // 🔹 Rechercher sur Unsplash
+      const url = `https://unsplash.com/s/photos/${encodeURIComponent(query)}`;
+      const res = await axios.get(url);
+      const $ = load(res.data);
+
+      // 🔹 Prendre la première image
+      const imgUrl = $('img[src^="https://images.unsplash.com"]').first().attr("src");
+      if (!imgUrl) {
         return kaya.sendMessage(
           m.chat,
-          {
-            text: '❌ Veuillez fournir un prompt pour générer l’image.\nExemple : .imagine un coucher de soleil sur la mer',
-            contextInfo
-          },
+          { text: "❌ Aucune image trouvée." },
           { quoted: m }
         );
       }
 
-      // Message temporaire
+      // 🔹 Envoyer l'image
       await kaya.sendMessage(
         m.chat,
-        { text: '🎨 Génération de l’image... Patientez s’il vous plaît.' },
+        { image: { url: imgUrl }, caption: `Image trouvée pour : ${query}` },
         { quoted: m }
       );
-
-      // Amélioration du prompt
-      const enhancedPrompt = enhancePrompt(prompt);
-
-      // Appel à l’API
-      const response = await axios.get(
-        `https://shizoapi.onrender.com/api/ai/imagine?apikey=shizo&query=${encodeURIComponent(enhancedPrompt)}`,
-        { responseType: 'arraybuffer' }
-      );
-
-      const imageBuffer = Buffer.from(response.data);
-
-      // Envoi de l’image
-      await kaya.sendMessage(
-        m.chat,
-        {
-          image: imageBuffer,
-          caption: `🎨 Image générée pour le prompt : "${prompt}"`,
-          contextInfo
-        },
-        { quoted: m }
-      );
-
     } catch (err) {
-      console.error('❌ Imagine command error:', err);
-      await kaya.sendMessage(
+      console.error(err);
+      return kaya.sendMessage(
         m.chat,
-        { text: '❌ Impossible de générer l’image. Veuillez réessayer plus tard.', contextInfo },
+        { text: "❌ Impossible de récupérer l'image." },
         { quoted: m }
       );
     }
-  }
+  },
 };
-
-// Fonction pour améliorer le prompt
-function enhancePrompt(prompt) {
-  const qualityEnhancers = [
-    'high quality',
-    'detailed',
-    'masterpiece',
-    'best quality',
-    'ultra realistic',
-    '4k',
-    'highly detailed',
-    'professional photography',
-    'cinematic lighting',
-    'sharp focus'
-  ];
-
-  const numEnhancers = Math.floor(Math.random() * 2) + 3; // 3 à 4 mots
-  const selectedEnhancers = qualityEnhancers
-    .sort(() => Math.random() - 0.5)
-    .slice(0, numEnhancers);
-
-  return `${prompt}, ${selectedEnhancers.join(', ')}`;
-}

@@ -1,10 +1,9 @@
-// ================= commands/kick.js =================
 import checkAdminOrOwner from "../system/checkAdmin.js";
 import { contextInfo } from "../system/contextInfo.js";
 
 export default {
   name: "kick",
-  description: "Expulse un membre du groupe (silencieux)",
+  description: "Remove a member from the group silently",
   category: "Groupe",
   group: true,
   admin: true,
@@ -14,32 +13,32 @@ export default {
     const chatId = m.chat;
 
     try {
-      // 🔹 Vérification admin / owner
+      // 🔹 Check admin / owner
       const permissions = await checkAdminOrOwner(kaya, chatId, m.sender);
       if (!permissions.isAdminOrOwner) {
         return kaya.sendMessage(
           chatId,
-          { text: "🚫 Seuls les *Admins* ou le *Propriétaire* peuvent utiliser `.kick`.", contextInfo },
+          { text: "🚫 Only *Admins* or the *Owner* can use `.kick`.", contextInfo },
           { quoted: m }
         );
       }
 
-      // 🔹 Récupération metadata du groupe
+      // 🔹 Fetch group metadata
       const groupMetadata = await kaya.groupMetadata(chatId);
       const participants = groupMetadata.participants || [];
 
-      // ==================== CIBLE ====================
+      // ==================== TARGET ====================
       let target = null;
 
       // Mention
       if (m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.length > 0) {
         target = m.message.extendedTextMessage.contextInfo.mentionedJid[0];
       }
-      // Réponse à un message
+      // Reply to a message
       else if (m.message?.extendedTextMessage?.contextInfo?.participant) {
         target = m.message.extendedTextMessage.contextInfo.participant;
       }
-      // Numéro écrit
+      // Written number
       else if (args[0]) {
         target = args[0].replace(/[^0-9]/g, "") + "@s.whatsapp.net";
       }
@@ -47,12 +46,12 @@ export default {
       if (!target) {
         return kaya.sendMessage(
           chatId,
-          { text: "⚙️ Usage : `.kick @utilisateur` ou répondre à son message.", contextInfo },
+          { text: "⚙️ Usage: `.kick @user` or reply to their message.", contextInfo },
           { quoted: m }
         );
       }
 
-      // 🔹 Protection admins
+      // 🔹 Protect admins
       const groupAdmins = participants
         .filter(p => p.admin === "admin" || p.admin === "superadmin")
         .map(p => p.id);
@@ -60,22 +59,22 @@ export default {
       if (groupAdmins.includes(target)) {
         return kaya.sendMessage(
           chatId,
-          { text: "❌ Impossible d’expulser un *Admin*.", contextInfo },
+          { text: "❌ Cannot kick an *Admin*.", contextInfo },
           { quoted: m }
         );
       }
 
-      // ==================== KICK SILENCIEUX ====================
+      // ==================== SILENT KICK ====================
       await kaya.groupParticipantsUpdate(chatId, [target], "remove");
 
-      // ❌ AUCUN MESSAGE ENVOYÉ AU GROUPE
+      // ❌ NO MESSAGE SENT TO THE GROUP
       return;
 
     } catch (err) {
-      console.error("❌ Erreur commande kick:", err);
+      console.error("❌ Kick command error:", err);
       return kaya.sendMessage(
         chatId,
-        { text: "⚠️ Impossible d’expulser ce membre.", contextInfo },
+        { text: "⚠️ Unable to remove this member.", contextInfo },
         { quoted: m }
       );
     }

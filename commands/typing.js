@@ -1,27 +1,24 @@
-// ==================== commands/typing.js ====================
 import { saveBotModes } from '../system/botStatus.js';
 import { contextInfo } from '../system/contextInfo.js';
 
 export default {
   name: 'typing',
-  description: 'Active ou désactive le mode écriture automatique',
+  description: 'Enable or disable automatic typing mode',
   category: 'Owner',
+  ownerOnly: true, // ✅ handled by the handler
 
   run: async (kaya, m, args) => {
     try {
-      // 🔐 Owner uniquement
-      if (!m.fromMe) return;
-
       const action = args[0]?.toLowerCase();
       if (!['on', 'off', 'status'].includes(action)) {
         return kaya.sendMessage(
           m.chat,
-          { text: '❌ Utilisation : .typing on|off|status', contextInfo },
+          { text: '❌ Usage: .typing on|off|status', contextInfo },
           { quoted: m }
         );
       }
 
-      // Initialiser botModes si nécessaire
+      // Initialize botModes if needed
       global.botModes = global.botModes || {};
       global.botModes.typing = global.botModes.typing || false;
 
@@ -29,14 +26,14 @@ export default {
         global.botModes.typing = true;
         saveBotModes(global.botModes);
 
-        // Déclencher immédiatement pour confirmer
+        // Trigger immediately to confirm
         await kaya.sendPresenceUpdate('composing', m.chat);
         setTimeout(() => kaya.sendPresenceUpdate('paused', m.chat), 2000);
 
         return kaya.sendMessage(
           m.chat,
           {
-            text: '✅ Mode "typing" activé.\n\nLe bot montrera l\'indicateur "en train d\'écrire" pendant 3 secondes à chaque message reçu.',
+            text: '✅ "Typing" mode enabled.\n\nThe bot will show the "typing" indicator.',
             contextInfo
           },
           { quoted: m }
@@ -47,12 +44,12 @@ export default {
         global.botModes.typing = false;
         saveBotModes(global.botModes);
 
-        // Arrêter immédiatement
+        // Stop immediately
         await kaya.sendPresenceUpdate('paused', m.chat);
 
         return kaya.sendMessage(
           m.chat,
-          { text: '❌ Mode "typing" désactivé.', contextInfo },
+          { text: '❌ "Typing" mode disabled.', contextInfo },
           { quoted: m }
         );
       }
@@ -61,16 +58,16 @@ export default {
         const isActive = global.botModes.typing;
         return kaya.sendMessage(
           m.chat,
-          { text: `📊 Mode typing: ${isActive ? '✅ ACTIVÉ' : '❌ DÉSACTIVÉ'}`, contextInfo },
+          { text: `📊 Typing mode: ${isActive ? '✅ ENABLED' : '❌ DISABLED'}`, contextInfo },
           { quoted: m }
         );
       }
 
     } catch (err) {
-      console.error('❌ Erreur typing.js :', err);
+      console.error('❌ typing.js error:', err);
       return kaya.sendMessage(
         m.chat,
-        { text: '❌ Une erreur est survenue.', contextInfo },
+        { text: '❌ An error occurred.', contextInfo },
         { quoted: m }
       );
     }

@@ -1,7 +1,6 @@
 // ==================== commands/autoread.js ====================
 import fs from 'fs';
 import path from 'path';
-import { contextInfo } from '../system/contextInfo.js';
 
 const CONFIG_PATH = path.join(process.cwd(), 'data', 'autoread.json');
 
@@ -13,24 +12,13 @@ function initConfig() {
   return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
 }
 
-// 🎯 Vérifie si autoread est activé
-export function isAutoreadEnabled() {
-  try {
-    const config = initConfig();
-    return config.enabled;
-  } catch (e) {
-    console.error('❌ Error checking autoread status:', e);
-    return false;
-  }
-}
-
 // 👀 Vérifie si le bot est mentionné dans un message
-export function isBotMentionedInMessage(message, botNumber) {
+function isBotMentionedInMessage(message, botNumber) {
   if (!message.message) return false;
 
   const messageTypes = [
-    'extendedTextMessage','imageMessage','videoMessage','stickerMessage',
-    'documentMessage','audioMessage','contactMessage','locationMessage'
+    'extendedTextMessage', 'imageMessage', 'videoMessage', 'stickerMessage',
+    'documentMessage', 'audioMessage', 'contactMessage', 'locationMessage'
   ];
 
   for (const type of messageTypes) {
@@ -58,28 +46,33 @@ export function isBotMentionedInMessage(message, botNumber) {
 
 // ✅ Fonction principale pour lire automatiquement les messages
 export async function handleAutoread(sock, m) {
-  if (!isAutoreadEnabled()) return false;
+  try {
+    const config = initConfig();
+    if (!config.enabled) return false;
 
-  const botNumber = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-  const mentioned = isBotMentionedInMessage(m, botNumber);
+    const botNumber = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+    const mentioned = isBotMentionedInMessage(m, botNumber);
 
-  if (mentioned) return false; // ne marque pas lu si bot mentionné
+    if (mentioned) return false; // ne pas lire si bot mentionné
 
-  const key = { remoteJid: m.key.remoteJid, id: m.key.id, participant: m.key.participant };
-  await sock.readMessages([key]);
-  return true;
+    const key = { remoteJid: m.key.remoteJid, id: m.key.id, participant: m.key.participant };
+    await sock.readMessages([key]);
+    return true;
+  } catch (err) {
+    console.error('[AUTOREAD]', err);
+    return false;
+  }
 }
 
-// ⚙️ Commande autoread
+// ⚙️ Commande autoread pour l’utilisateur
 export default {
   name: 'autoread',
   description: 'Activer ou désactiver la lecture automatique des messages',
   category: 'Owner',
+  ownerOnly: true, // ✅ géré par le handler
 
   run: async (kaya, m, args) => {
     try {
-      if (!m.fromMe) return;
-
       const config = initConfig();
       const action = args[0]?.toLowerCase();
 
@@ -88,7 +81,7 @@ export default {
       else if (!action) config.enabled = !config.enabled;
       else return kaya.sendMessage(
         m.chat,
-        { text: '❌ Option invalide ! Utilise : .autoread on/off', contextInfo },
+        { text: '❌ Option invalide ! Utilise : .autoread on/off' },
         { quoted: m }
       );
 
@@ -96,15 +89,15 @@ export default {
 
       await kaya.sendMessage(
         m.chat,
-        { text: `✅ Auto-read est maintenant ${config.enabled ? 'activé' : 'désactivé'} !`, contextInfo },
+        { text: `✅ Auto-read est maintenant ${config.enabled ? 'activé' : 'désactivé'} !` },
         { quoted: m }
       );
 
     } catch (err) {
-      console.error('❌ autoread error:', err);
+      console.error('[AUTOREAD CMD]', err);
       await kaya.sendMessage(
         m.chat,
-        { text: '❌ Une erreur est survenue lors de la commande.', contextInfo },
+        { text: '❌ Une erreur est survenue lors de la commande.' },
         { quoted: m }
       );
     }

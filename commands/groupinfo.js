@@ -3,21 +3,21 @@ import { contextInfo } from '../system/contextInfo.js';
 export default {
   name: 'groupinfo',
   alias: ['infogroup', 'ginfo'],
-  description: 'Affiche les informations du groupe',
+  description: 'Displays group information',
   category: 'Groupe',
 
   async run(kaya, m) {
     try {
-      // ❌ Groupe uniquement
+      // ❌ Group only
       if (!m.isGroup) {
         return kaya.sendMessage(
           m.chat,
-          { text: '❌ Cette commande fonctionne uniquement dans un groupe.', contextInfo },
+          { text: '❌ This command only works in a group.', contextInfo },
           { quoted: m }
         );
       }
 
-      // 📋 Métadonnées du groupe
+      // 📋 Group metadata
       const groupMetadata = await kaya.groupMetadata(m.chat);
       const participants = groupMetadata.participants;
 
@@ -33,7 +33,7 @@ export default {
         admins.find(v => v.admin === 'superadmin')?.id ||
         m.chat.split('-')[0] + '@s.whatsapp.net';
 
-      // 🖼️ Photo du groupe
+      // 🖼️ Group picture
       let pp;
       try {
         pp = await kaya.profilePictureUrl(m.chat, 'image');
@@ -41,31 +41,31 @@ export default {
         pp = 'https://i.imgur.com/2wzGhpF.jpeg';
       }
 
-      // 📝 Texte
+      // 📝 Text
       const text = `
-┌──「 👑 *INFO DU GROUPE* 👑 」
+┌──「 👑 *GROUP INFO* 👑 」
 │
 ├ 🆔 *ID* :
 │ • ${groupMetadata.id}
 │
-├ 🔖 *Nom* :
+├ 🔖 *Name* :
 │ • ${groupMetadata.subject}
 │
-├ 👥 *Membres* :
+├ 👥 *Members* :
 │ • ${participants.length}
 │
 ├ 🤿 *Owner* :
 │ • @${owner.split('@')[0]}
 │
 ├ 🕵🏻‍♂️ *Admins* :
-${adminList || '• Aucun'}
+${adminList || '• None'}
 │
 ├ 📌 *Description* :
-│ • ${groupMetadata.desc || 'Aucune description'}
+│ • ${groupMetadata.desc || 'No description'}
 └───────────────
 `.trim();
 
-      // 📤 Envoi
+      // 📤 Send
       await kaya.sendMessage(
         m.chat,
         {
@@ -81,7 +81,7 @@ ${adminList || '• Aucun'}
       console.error('❌ groupinfo error:', err);
       await kaya.sendMessage(
         m.chat,
-        { text: '❌ Impossible de récupérer les infos du groupe.', contextInfo },
+        { text: '❌ Unable to fetch group information.', contextInfo },
         { quoted: m }
       );
     }

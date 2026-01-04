@@ -6,7 +6,7 @@ export default {
     name: 'take',
     alias: ['steal', 'reprendre', 'vol'],
     description: 'Reprend un média avec seulement le pseudo comme auteur (pas de pack)',
-    category: 'media',
+    category: 'Sticker',
     usage: '<répondre à un sticker/image/vidéo> [texte optionnel]',
     async execute(sock, m, args) {
         try {

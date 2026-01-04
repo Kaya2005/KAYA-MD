@@ -1,84 +1,86 @@
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import config, { saveConfig } from "../config.js";
-import { contextInfo } from "../system/contextInfo.js";
 
-// 🔹 Normalise un numéro
-const normalize = (jid) => jid.split("@")[0].replace(/\D/g, "");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const configPath = path.join(__dirname, "../data/config.json");
 
 export default {
   name: "unsudo",
-  description: "❌ Retirer un owner (Owner uniquement)",
+  description: "❌ Remove an owner from the bot",
   category: "Owner",
+  ownerOnly: true,
 
   run: async (kaya, m, args) => {
     try {
-      // 🔐 Sécurité : seulement l’owner principal
-      if (!m.fromMe) return;
+      // ================== TARGET ==================
+      let target = null;
 
-      console.log("🟢 unsudo command triggered");
+      // Mention
+      if (m.mentionedJid?.length) target = m.mentionedJid[0];
+      // Reply
+      else if (m.message?.extendedTextMessage?.contextInfo?.participant)
+        target = m.message.extendedTextMessage.contextInfo.participant;
+      // Written number
+      else if (args[0]) target = args[0];
 
-      // 📋 Owners actuels
-      let owners = config.OWNER_NUMBER
-        .split(",")
-        .map(o => normalize(o));
-
-      // 🎯 Cible
-      let target;
-      if (m.quoted?.sender) {
-        target = normalize(m.quoted.sender);
-      } else if (args[0]) {
-        target = args[0].replace(/\D/g, "");
-      } else {
+      if (!target) {
         return kaya.sendMessage(
           m.chat,
-          { text: "❌ Utilisation : unsudo <numéro> ou répondre à un message.", contextInfo },
+          { text: "⚠️ Mention a number, reply to a message, or type a number." },
           { quoted: m }
         );
       }
 
-      // 🚫 Protection : ne pas se retirer soi-même
-      const me = normalize(m.sender);
-      if (target === me) {
+      // ================== CLEAN NUMBER ==================
+      const number = target.replace(/\D/g, "");
+
+      if (!number) {
         return kaya.sendMessage(
           m.chat,
-          { text: "🚫 Tu ne peux pas te retirer toi-même des owners.", contextInfo },
+          { text: "⚠️ Invalid number." },
           { quoted: m }
         );
       }
 
-      if (!owners.includes(target)) {
+      // ================== LOAD CONFIG ==================
+      const data = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+
+      if (!Array.isArray(data.OWNERS)) data.OWNERS = [];
+
+      // ================== CHECK EXISTENCE ==================
+      if (!data.OWNERS.includes(number)) {
         return kaya.sendMessage(
           m.chat,
-          {
-            text: `ℹ️ *@${target}* n'est pas owner.`,
-            mentions: [target + "@s.whatsapp.net"],
-            contextInfo
-          },
+          { text: `ℹ️ ${number} is not an owner.` },
           { quoted: m }
         );
       }
 
-      // ➖ Suppression
-      owners = owners.filter(o => o !== target);
-      saveConfig({ OWNER_NUMBER: owners.join(",") });
+      // ================== REMOVE ==================
+      data.OWNERS = data.OWNERS.filter(n => n !== number);
 
-      console.log("✅ Owner retiré :", target);
+      fs.writeFileSync(configPath, JSON.stringify(data, null, 2));
+      saveConfig({ OWNERS: data.OWNERS });
 
-      // 📤 Confirmation
-      return kaya.sendMessage(
+      global.owner = data.OWNERS;
+
+      // ================== CONFIRMATION ==================
+      await kaya.sendMessage(
         m.chat,
-        {
-          text: `╭━━〔 ❌ OWNER RETIRÉ 〕━━⬣
-├ 📲 Numéro : @${target}
-├ 🗑️ Statut : *Supprimé des OWNERS*
-╰──────────────────⬣`,
-          mentions: [target + "@s.whatsapp.net"],
-          contextInfo
-        },
+        { text: `❌ ${number} is no longer an *OWNER* of the bot.` },
         { quoted: m }
       );
 
     } catch (err) {
-      console.error("❌ Erreur unsudo :", err);
+      console.error("❌ unsudo error:", err);
+      await kaya.sendMessage(
+        m.chat,
+        { text: "❌ Unable to remove the owner." },
+        { quoted: m }
+      );
     }
   }
 };

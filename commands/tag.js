@@ -1,35 +1,34 @@
-// ==================== commands/tag.js ====================
 import checkAdminOrOwner from '../system/checkAdmin.js';
 
 export default {
   name: 'tag',
-  description: 'Mentionne tous les membres avec le texte écrit ou cité',
+  description: 'Mention all group members with the written or quoted text',
   category: 'Groupe',
   group: true,
   admin: true,
 
   run: async (kaya, m, args) => {
     try {
-      // 🔹 Vérifie que c’est un groupe
+      // 🔹 Check if this is a group
       if (!m.key.remoteJid.endsWith('@g.us')) {
         return kaya.sendMessage(
           m.chat,
-          { text: '❌ Cette commande fonctionne uniquement dans un groupe.' },
+          { text: '❌ This command only works in groups.' },
           { quoted: m }
         );
       }
 
-      // 🔹 Vérifie admin / owner
+      // 🔹 Check admin / owner
       const permissions = await checkAdminOrOwner(kaya, m.chat, m.sender);
       if (!permissions.isAdminOrOwner) {
         return kaya.sendMessage(
           m.chat,
-          { text: '⛔ Commande réservée aux admins et au owner.' },
+          { text: '⛔ This command is reserved for admins and the owner.' },
           { quoted: m }
         );
       }
 
-      // 🔹 Récupère le texte cité si présent (Baileys v7)
+      // 🔹 Get quoted text if present (Baileys v7)
       let quotedText = '';
       const ctx = m.message?.extendedTextMessage?.contextInfo;
       if (ctx?.quotedMessage) {
@@ -39,17 +38,18 @@ export default {
           qm.extendedTextMessage?.text ||
           qm.imageMessage?.caption ||
           qm.videoMessage?.caption ||
+          qm.urlMessage?.canonicalUrl || // <-- Added for links
           '';
       }
 
-      // 🔹 Liste des membres du groupe
+      // 🔹 Text to send (if no quoted message, take args or default message)
+      const text = quotedText || args.join(' ') || '📢 General mention';
+
+      // 🔹 List of group members
       const metadata = await kaya.groupMetadata(m.chat);
       const members = metadata.participants.map(p => p.id || p.jid).filter(Boolean);
 
-      // 🔹 Texte à envoyer
-      const text = quotedText || args.join(' ') || '📢 Mention générale';
-
-      // 🔹 Envoi du message avec mentions
+      // 🔹 Send message with mentions
       await kaya.sendMessage(
         m.chat,
         {
@@ -60,10 +60,10 @@ export default {
       );
 
     } catch (err) {
-      console.error('❌ Erreur commande tag :', err);
+      console.error('❌ Tag command error:', err);
       await kaya.sendMessage(
         m.chat,
-        { text: '❌ Erreur lors de l’envoi du tag.' },
+        { text: '❌ Error occurred while sending the tag.' },
         { quoted: m }
       );
     }

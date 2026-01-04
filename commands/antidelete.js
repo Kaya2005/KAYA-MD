@@ -49,7 +49,7 @@ const saveConfig = (config) => {
 export default {
   name: "antidelete",
   description: "🛡️ Active/Désactive l'anti-suppression de messages",
-  category: "Bot",
+  category: "Owner",
   ownerOnly: true,
 
   run: async (sock, m, args) => {

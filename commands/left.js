@@ -4,7 +4,7 @@ import { contextInfo } from "../system/contextInfo.js";
 export default {
   name: "left",
   description: "🚪 Le bot quitte le groupe (Sécurité absolue)",
-  category: "Owner",
+  category: "Groupe",
 
   run: async (kaya, m) => {
     try {

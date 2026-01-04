@@ -1,75 +1,89 @@
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import config, { saveConfig } from "../config.js";
-import { contextInfo } from "../system/contextInfo.js";
 
-// 🔹 Normalise un numéro
-const normalize = (jid) => jid.split("@")[0].replace(/\D/g, "");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const configPath = path.join(__dirname, "../data/config.json");
 
 export default {
   name: "sudo",
-  description: "👑 Ajouter un owner (Owner uniquement)",
+  description: "👑 Add an owner to the bot",
   category: "Owner",
+  ownerOnly: true,
 
   run: async (kaya, m, args) => {
     try {
-      // 🔐 Sécurité absolue : seulement l’owner principal
-      if (!m.fromMe) return;
+      // ================== GET TARGET ==================
+      let target = null;
 
-      console.log("🟢 sudo command triggered");
+      // Mention
+      if (m.mentionedJid?.length) target = m.mentionedJid[0];
+      // Reply
+      else if (m.message?.extendedTextMessage?.contextInfo?.participant) target = m.message.extendedTextMessage.contextInfo.participant;
+      // Written number
+      else if (args[0]) target = args[0];
 
-      // 📋 Owners actuels
-      const owners = config.OWNER_NUMBER
-        .split(",")
-        .map(o => normalize(o));
-
-      // 🎯 Cible
-      let target;
-      if (m.quoted?.sender) {
-        target = normalize(m.quoted.sender);
-      } else if (args[0]) {
-        target = args[0].replace(/\D/g, "");
-      } else {
+      if (!target) {
         return kaya.sendMessage(
           m.chat,
-          { text: "❌ Utilisation : sudo <numéro> ou répondre à un message.", contextInfo },
+          { text: "⚠️ Mention a number, reply to a message, or type a number." },
           { quoted: m }
         );
       }
 
-      if (owners.includes(target)) {
+      // ================== CLEAN NUMBER ==================
+      // Keep only digits
+      const number = target.replace(/\D/g, "");
+
+      if (!number) {
         return kaya.sendMessage(
           m.chat,
-          {
-            text: `ℹ️ *@${target}* est déjà owner.`,
-            mentions: [target + "@s.whatsapp.net"],
-            contextInfo
-          },
+          { text: "⚠️ Invalid number." },
           { quoted: m }
         );
       }
 
-      // ➕ Ajout
-      owners.push(target);
-      saveConfig({ OWNER_NUMBER: owners.join(",") });
+      // ================== LOAD CONFIG ==================
+      const data = JSON.parse(fs.readFileSync(configPath, "utf-8"));
 
-      console.log("✅ Nouvel owner ajouté :", target);
+      // 🔁 Ensure OWNERS is an array
+      if (!Array.isArray(data.OWNERS)) data.OWNERS = [];
 
-      // 📤 Confirmation
-      return kaya.sendMessage(
+      // ================== ALREADY OWNER? ==================
+      if (data.OWNERS.includes(number)) {
+        return kaya.sendMessage(
+          m.chat,
+          { text: `ℹ️ ${number} is already an owner.` },
+          { quoted: m }
+        );
+      }
+
+      // ================== ADD OWNER ==================
+      data.OWNERS.push(number);
+
+      // Save config
+      fs.writeFileSync(configPath, JSON.stringify(data, null, 2));
+      saveConfig({ OWNERS: data.OWNERS });
+
+      // Update global variable
+      global.owner = data.OWNERS;
+
+      // ================== CONFIRMATION ==================
+      await kaya.sendMessage(
         m.chat,
-        {
-          text: `╭━━〔 👑 OWNER AJOUTÉ 〕━━⬣
-├ 📲 Numéro : @${target}
-├ ✅ Statut : *OWNER*
-├ 🔐 Accès : *Total*
-╰──────────────────⬣`,
-          mentions: [target + "@s.whatsapp.net"],
-          contextInfo
-        },
+        { text: `✅ ${number} is now a *BOT OWNER*.` },
         { quoted: m }
       );
 
     } catch (err) {
-      console.error("❌ Erreur sudo :", err);
+      console.error("❌ sudo error:", err);
+      await kaya.sendMessage(
+        m.chat,
+        { text: "❌ Failed to add the owner." },
+        { quoted: m }
+      );
     }
   }
 };
