@@ -4,31 +4,37 @@ import config from "../config.js";
 
 export async function checkUpdate(sock) {
   try {
+    // Récupération des infos de version depuis GitHub
     const { data } = await axios.get(
-      "https://raw.githubusercontent.com/Kaya2005/KAYA-MD-MINI/main/version.json"
+      "https://raw.githubusercontent.com/Kaya2005/KAYA-MD/main/version.json"
     );
 
     const localVersion = config.VERSION || "0.0.0";
     const remoteVersion = data.version;
 
+    // Si la version distante est différente, notifier l’owner
     if (localVersion !== remoteVersion) {
       const msg = `
-🚀 *MISE À JOUR DISPONIBLE*
+🚀 *UPDATE AVAILABLE*
 ━━━━━━━━━━━━━━━━━━
-📦 Version actuelle : ${localVersion}
-🆕 Nouvelle version : ${remoteVersion}
+📦 Current version: ${localVersion}
+🆕 New version: ${remoteVersion}
 
-📝 ${data.message}
+📝 ${data.message || "No details provided"}
 
-👉 Tape *.update* pour mettre à jour
+👉 Type *.update* to upgrade
 `;
 
-      await sock.sendMessage(
-        sock.user.id,
-        { text: msg }
-      );
+      if (sock.user?.id) {
+        await sock.sendMessage(sock.user.id, { text: msg });
+      } else {
+        console.log("⚠️ Unable to send update message: bot ID not found.");
+      }
+    } else {
+      console.log(`✅ Bot is up-to-date (v${localVersion})`);
     }
+
   } catch (err) {
-    console.log("⚠️ Vérification update impossible");
+    console.log("⚠️ Unable to check for updates:", err.message);
   }
 }
