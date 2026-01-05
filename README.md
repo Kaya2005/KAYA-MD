@@ -1,77 +1,109 @@
-# 🤖 KAYA-MD — Bot WhatsApp
+# 🤖 KAYA-MD — WhatsApp Bot
 
-![KAYA-MD Banner](https://files.catbox.moe/s42m2j.jpg)
+<p align="center">
+  <img src="https://files.catbox.moe/zcg6kh.jpg" alt="KAYA-MD Banner" width="100%">
+</p>
 
-**KAYA-MD** est un bot WhatsApp développé en **Node.js avec Baileys**.  
-Il est conçu pour être **rapide, stable et facile à déployer**, même sur des **serveurs gratuits**.  
-Le bot utilise un **système de session en ligne** pour éviter les QR locaux et simplifier l’installation.
-
----
-
-## 🌐 Site de génération de session
-
-👉 Génère ta session WhatsApp ici :  
-🔗 https://kaya-session-id.vercel.app  
-
-Ce site permet de connecter le bot  avec pair ou Qr code
+**KAYA-MD** is a WhatsApp bot built with **Node.js and Baileys**.  
+It is designed to be **fast, stable, and easy to deploy**, even on **free hosting platforms**.  
+The bot uses an **online session system**, avoiding local QR scans and simplifying setup.
 
 ---
 
-## 🆓 Déploiement gratuit
+## 🌐 Session Generator
 
-Tu peux déployer **KAYA-MD gratuitement** sur Katabump :  
+<p align="center">
+  <a href="https://kaya-session-id.vercel.app" target="_blank">
+    <button style="padding:12px 20px;font-size:16px;border:none;border-radius:8px;background:#28a745;color:white;cursor:pointer;">
+      🔐 Generate WhatsApp Session
+    </button>
+  </a>
+</p>
 
-🔗 https://dashboard.katabump.com/auth/login#483bf6  
-
-✔️ Serveur gratuit  
-✔️ Compatible Node.js  
-✔️ Adapté aux bots WhatsApp  
-
----
-
-## 📺 Tutoriels YouTube
-
-📌 Chaîne officielle :  
-🔗 https://www.youtube.com/@TECHword-1  
-
-Tu y trouveras des tutoriels sur :
-- L’installation
-- La génération de session
-- Le déploiement
-- La configuration du bot
+Connect your bot using **Pair Code or QR Code**.
 
 ---
 
-## 📲 Chaîne WhatsApp officielle
+## 🆓 Free Deployment (Katabump)
 
-Rejoins la chaîne pour les mises à jour et annonces :  
+<p align="center">
+  <a href="https://dashboard.katabump.com/auth/login#483bf6" target="_blank">
+    <button style="padding:12px 20px;font-size:16px;border:none;border-radius:8px;background:#007bff;color:white;cursor:pointer;">
+      🚀 Deploy on Katabump
+    </button>
+  </a>
+</p>
 
-👉 https://whatsapp.com/channel/0029Vb6FFPM002T3SKA6bb2D  
-
----
-
-## ⚙️ Technologies utilisées
-
-- Node.js
-- Baileys
-- Express.js
-- JavaScript (ESM)
-
----
-
-## ⚠️ Avertissement
-
-Ce projet est fourni à **des fins éducatives**.  
-L’utilisateur est responsable de l’utilisation du bot conformément aux règles de WhatsApp.
+✔️ Free server  
+✔️ Node.js supported  
+✔️ Perfect for WhatsApp bots  
 
 ---
 
-## 👑 Auteur
+## 📺 YouTube Tutorials
+
+<p align="center">
+  <a href="https://www.youtube.com/@TECHword-1" target="_blank">
+    <button style="padding:12px 20px;font-size:16px;border:none;border-radius:8px;background:#ff0000;color:white;cursor:pointer;">
+      ▶️ Visit YouTube Channel
+    </button>
+  </a>
+</p>
+
+Tutorials include:
+- Installation  
+- Session generation  
+- Deployment  
+- Bot configuration  
+
+---
+
+## 📲 Official WhatsApp Channel
+
+<p align="center">
+  <a href="https://whatsapp.com/channel/0029Vb6FFPM002T3SKA6bb2D" target="_blank">
+    <button style="padding:12px 20px;font-size:16px;border:none;border-radius:8px;background:#25D366;color:white;cursor:pointer;">
+      💬 Join WhatsApp Channel
+    </button>
+  </a>
+</p>
+
+---
+
+## ⚙️ Technologies Used
+
+- Node.js  
+- Baileys  
+- Express.js  
+- JavaScript (ESM)  
+
+---
+
+## ⚠️ Disclaimer
+
+This project is provided **for educational purposes only**.  
+The user is responsible for using this bot in compliance with **WhatsApp’s Terms of Service**.
+
+---
+
+## 👑 Author
 
 **KAYA TECH**  
-Créateur de **KAYA-MD**
+Creator of **KAYA-MD**
 
-📺 YouTube : https://www.youtube.com/@TECHword-1  
-📲 WhatsApp : https://whatsapp.com/channel/0029Vb6FFPM002T3SKA6bb2D  
+<p align="center">
+  <a href="https://www.youtube.com/@TECHword-1" target="_blank">
+    <button style="padding:10px 18px;margin:5px;border:none;border-radius:8px;background:#ff0000;color:white;">
+      📺 YouTube
+    </button>
+  </a>
+  <a href="https://whatsapp.com/channel/0029Vb6FFPM002T3SKA6bb2D" target="_blank">
+    <button style="padding:10px 18px;margin:5px;border:none;border-radius:8px;background:#25D366;color:white;">
+      📲 WhatsApp Channel
+    </button>
+  </a>
+</p>
 
-⭐ Pense à mettre une étoile ⭐ 
+---
+
+⭐ **Don’t forget to give the project a star!** ⭐
