@@ -1,66 +1,101 @@
+// ==================== commands/ai.js ====================
+import axios from 'axios';
 import fetch from 'node-fetch';
 
 export default {
   name: 'ai',
-  alias: ['gpt', 'chat'],
+  alias: ['gpt', 'chat', 'gemini'],
   category: 'AI',
-  description: 'Parler avec une intelligence artificielle',
-  usage: '.ai <question> | reply à un message',
+  description: 'Chat with an artificial intelligence',
+  usage: '.ai <question> | reply to a message',
 
-  run: async (kaya, m, args) => {
+  run: async (sock, m, args) => {
     try {
       let prompt = '';
 
-      // ================== RÉCUP TEXTE (Baileys v7 RC6) ==================
+      // ================== GET TEXT (message or reply) ==================
       if (m.quoted?.message) {
         const msg = m.quoted.message;
         prompt =
-          msg.extendedTextMessage?.text || // reply texte
-          msg.imageMessage?.caption ||     // caption image
-          msg.videoMessage?.caption ||     // caption vidéo
-          msg.documentMessage?.caption ||  // caption document
+          msg.conversation ||
+          msg.extendedTextMessage?.text ||
+          msg.imageMessage?.caption ||
+          msg.videoMessage?.caption ||
+          msg.documentMessage?.caption ||
           '';
       } else {
         prompt = args.join(' ');
       }
 
       if (!prompt.trim()) {
-        return kaya.sendMessage(
+        return sock.sendMessage(
           m.chat,
-          { text: '❌ Pose une question ou reply à un message.\n\nExemple:\n.ai Explique JavaScript' },
+          { text: '❌ Please provide a question or reply to a message.\n\nExample:\n.ai Explain JavaScript' },
           { quoted: m }
         );
       }
 
-      // ⏳ Message d’attente
-      await kaya.sendMessage(
-        m.chat,
-        { text: '🤖 Réflexion en cours...' },
-        { quoted: m }
-      );
+      // ⏳ Reaction (processing)
+      await sock.sendMessage(m.chat, {
+        react: { text: '🤖', key: m.key }
+      });
 
-      // ================== APPEL API ==================
-      const res = await fetch(
-        `https://shizoapi.onrender.com/api/ai/chat?query=${encodeURIComponent(prompt)}`
-      );
+      // ================== GPT API (PRIORITY) ==================
+      try {
+        const gpt = await axios.get(
+          `https://zellapi.autos/ai/chatbot?text=${encodeURIComponent(prompt)}`,
+          { timeout: 20000 }
+        );
 
-      if (!res.ok) throw new Error(`API error: ${res.status}`);
+        if (gpt.data?.status && gpt.data?.result) {
+          return sock.sendMessage(
+            m.chat,
+            { text: gpt.data.result },
+            { quoted: m }
+          );
+        }
+      } catch (e) {
+        console.log('GPT API failed, trying Gemini fallback...');
+      }
 
-      const data = await res.json();
-      const reply = data?.result || data?.response || '❌ Aucune réponse trouvée.';
+      // ================== GEMINI FALLBACK ==================
+      const geminiApis = [
+        `https://vapis.my.id/api/gemini?q=${encodeURIComponent(prompt)}`,
+        `https://api.siputzx.my.id/api/ai/gemini-pro?content=${encodeURIComponent(prompt)}`,
+        `https://api.ryzendesu.vip/api/ai/gemini?text=${encodeURIComponent(prompt)}`,
+        `https://api.giftedtech.my.id/api/ai/geminiai?apikey=gifted&q=${encodeURIComponent(prompt)}`
+      ];
 
-      // ================== ENVOI ==================
-      await kaya.sendMessage(
-        m.chat,
-        { text: reply },
-        { quoted: m }
-      );
+      for (const api of geminiApis) {
+        try {
+          const res = await fetch(api, { timeout: 20000 });
+          const data = await res.json();
+
+          const answer =
+            data.result ||
+            data.answer ||
+            data.message ||
+            data.data;
+
+          if (answer) {
+            return sock.sendMessage(
+              m.chat,
+              { text: answer },
+              { quoted: m }
+            );
+          }
+        } catch {
+          continue;
+        }
+      }
+
+      throw new Error('All AI APIs failed');
 
     } catch (err) {
-      console.error('❌ AI command error:', err);
-      await kaya.sendMessage(
+      console.error('❌ AI error:', err);
+      await sock.sendMessage(
         m.chat,
-        { text: '❌ Erreur AI. L’API peut être indisponible ou votre message vide.' },
+        { text: '❌ Failed to get an AI response. Please try again later.' },
         { quoted: m }
       );
     }
