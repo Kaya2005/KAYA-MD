@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import pino from 'pino';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
-
+global.menuSessions = {};
 // ================== CONFIG & GLOBALS ==================
 import config from './config.js';
 import './system/globals.js';
@@ -124,22 +124,68 @@ async function startBot() {
       }
     });
 
-    // ================== MESSAGES ==================
-    sock.ev.on('messages.upsert', async ({ messages }) => {
-      if (!messages?.length) return;
+// ================== MESSAGES UPDATES ==================
+sock.ev.on('messages.upsert', async ({ messages }) => {
+  if (!messages?.length) return;
 
-      const valid = messages.filter(m => m?.message);
+  // ---------------------- Pré-filtrage ----------------------
+  const now = Date.now();
+  const valid = messages.filter(m => {
+    const jid = m.key.remoteJid;
+    const msgTime = m.messageTimestamp || m.message?.timestamp || Math.floor(now / 1000);
 
-      for (const msg of valid) {
-        try {
-          const m = smsg(sock, msg);
-          if (!m.body?.trim()) continue;
-          await handleCommand(sock, msg);
-        } catch (err) {
-          console.error('❌ Message handler error:', err);
-        }
+    return (
+      m?.message &&
+      jid !== 'status@broadcast' &&
+      jid !== '0@s.whatsapp.net' &&
+      (global.startupGrace?.enabled || msgTime >= global.botStartTime / 1000)
+    );
+  });
+
+  // ---------------------- Throttle par groupe ----------------------
+  global.lastUpsert ??= {};
+  
+  for (const msg of valid) {
+    try {
+      const jid = msg.key.remoteJid;
+
+      // ---------------------- Throttle simple pour groupes actifs ----------------------
+      const delay = 50; // ms
+      if (global.lastUpsert[jid] && now - global.lastUpsert[jid] < delay) continue;
+      global.lastUpsert[jid] = now;
+
+      // ---------------------- Cache smsg ----------------------
+      global._msgCache ??= new Map();
+      let mProcessed = global._msgCache.get(msg.key.id);
+      if (!mProcessed) {
+        mProcessed = smsg(sock, msg);
+        global._msgCache.set(msg.key.id, mProcessed);
       }
-    });
+
+      // ---------------------- Ignore messages sans texte ----------------------
+      if (!mProcessed.body?.trim()) continue;
+
+      // ---------------------- Ignore groupes désactivés ----------------------
+      if (mProcessed.isGroup && global.disabledGroups.has(mProcessed.chat)) continue;
+
+      // ---------------------- Exécution principale ----------------------
+      await handleCommand(sock, mProcessed);
+
+      // ---------------------- Nettoyage cache périodique ----------------------
+      if (global._msgCache.size > 10000) global._msgCache.clear();
+
+    } catch (err) {
+      // ---------------------- Gestion Bad MAC ----------------------
+      if (err.message?.includes('Bad MAC')) {
+        console.warn(`⚠️ Bad MAC dans ${msg.key.remoteJid}, skipping...`);
+        continue;
+      }
+
+      // ---------------------- Autres erreurs ----------------------
+      console.error('❌ messages.upsert error:', err);
+    }
+  }
+});
 
     // ================== GROUP EVENTS ==================
     sock.ev.on('group-participants.update', update =>
@@ -158,6 +204,7 @@ async function startBot() {
 }
 
 // ================== RUN ==================
+global.botStartTime = Date.now(); 
 startBot();
 
 // ================== GLOBAL ERRORS ==================

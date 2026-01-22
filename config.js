@@ -7,16 +7,23 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// ================== CHEMINS ==================
+const dataDir = path.join(__dirname, "data");
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+
+const configPath = path.join(dataDir, "config.json");
+
 // ================== CONFIGURATION PAR DÉFAUT ==================
 const defaultConfig = {
   // 🔑 Identifiants
   SESSION_ID: "SESSION_ID",
-  OWNERS: ["OWNER_NUMBER"], // ← tableau des owners, uniquement les numéros
+  
+  OWNERS: ["OWNER_NUMBER"], 
+
+  // ⚙️ Paramètres du bot
   PREFIX: ".",
   TIMEZONE: "Africa/Kinshasa",
   VERSION: "2.0.0",
-
-  // 🤖 Paramètres du bot
   public: true,
   autoRead: true,
   restrict: false,
@@ -27,14 +34,9 @@ const defaultConfig = {
   LINKS: {
     group: "https://chat.whatsapp.com/DoMh6jWjly2ErwVppmCGZo",
     channel: "https://whatsapp.com/channel/0029Vb6FFPM002T3SKA6bb2D",
-    telegram: "https://t.me/zonetech2"
-  }
+    telegram: "https://t.me/zonetech2",
+  },
 };
-// ================== CHEMINS DES DONNÉES ==================
-const dataDir = path.join(__dirname, "data");
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
-
-const configPath = path.join(dataDir, "config.json");
 
 // ================== CRÉATION DU FICHIER SI INEXISTANT ==================
 if (!fs.existsSync(configPath)) {
@@ -47,16 +49,18 @@ let userConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
 
 // ================== VARIABLES GLOBALES ==================
 global.blockInbox = userConfig.blockInbox ?? false;
-
-// 🔹 Initialisation des owners
 global.owner = Array.isArray(userConfig.OWNERS)
   ? userConfig.OWNERS
   : [userConfig.OWNER_NUMBER].filter(Boolean);
 
 // ================== FONCTION DE SAUVEGARDE ==================
 export function saveConfig(updatedConfig) {
+  // Merge avec la config actuelle
   userConfig = { ...userConfig, ...updatedConfig };
+
+  // Sauvegarde dans config.json
   fs.writeFileSync(configPath, JSON.stringify(userConfig, null, 2));
+  console.log("✅ Configuration sauvegardée dans config.json");
 
   // Mise à jour des variables globales
   if (typeof updatedConfig.blockInbox !== "undefined") {
@@ -65,8 +69,6 @@ export function saveConfig(updatedConfig) {
   if (Array.isArray(updatedConfig.OWNERS)) {
     global.owner = updatedConfig.OWNERS;
   }
-
-  console.log("✅ Configuration sauvegardée");
 }
 
 // ================== EXPORT ==================
