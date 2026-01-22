@@ -4,7 +4,6 @@ import fs from 'fs';
 import path from 'path';
 import { uploadImage } from '../lib/uploadImage.js';
 import { handleAutoread } from '../commands/autoread.js';
-import { handleTagDetection } from '../lib/antitagDetect.js';
 import { handleBotModes, loadBotModes } from './botStatus.js';
 
 // ================== 🧠 LOAD BOT MODES ==================
@@ -42,6 +41,5 @@ export async function downloadContentFromMessage(message, type) {
 export {
   uploadImage,
   handleAutoread,
-  handleTagDetection,
   handleBotModes
 };
