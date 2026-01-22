@@ -10,14 +10,14 @@ const __dirname = path.dirname(__filename);
 // ================== CONFIGURATION PAR DÉFAUT ==================
 const defaultConfig = {
   // 🔑 Identifiants
-  SESSION_ID: "SESSION_ID",
-  OWNERS: ["OWNER_NUMBER"], // ← tableau des owners, uniquement les numéros
-  PREFIX: ".",
+  SESSION_ID: "kaya~fd8mURpS#R_aGkaqi9da2F_jw2k-6mQ7cKwmM-UidkLQB42fu9wM",
+  OWNERS: ["50934137408"], // ← tableau des owners, uniquement les numéros
+  PREFIX: "+",
   TIMEZONE: "Africa/Kinshasa",
   VERSION: "2.0.0",
 
   // 🤖 Paramètres du bot
-  public: true,
+  public: false,
   autoRead: true,
   restrict: false,
   botImage: "",
