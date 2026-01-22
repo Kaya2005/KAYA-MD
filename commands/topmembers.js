@@ -24,10 +24,10 @@ setInterval(() => {
 
 // ==================== Utils ====================
 function incrementMessageCount(groupId, userId) {
-    const cleanJid = userId.split(':')[0];
+    // Stocke le JID complet pour éviter les problèmes de mentions
     if (!messageCounts[groupId]) messageCounts[groupId] = {};
-    if (!messageCounts[groupId][cleanJid]) messageCounts[groupId][cleanJid] = 0;
-    messageCounts[groupId][cleanJid]++;
+    if (!messageCounts[groupId][userId]) messageCounts[groupId][userId] = 0;
+    messageCounts[groupId][userId]++;
 }
 
 // ==================== TOP MEMBERS ====================
@@ -51,7 +51,10 @@ async function topMembers(sock, chatId) {
     const medals = ['🥇', '🥈', '🥉', '🏅', '🎖️'];
 
     sorted.forEach(([jid, count], index) => {
-        const user = participants.find(p => p.id === jid);
+        const user = participants.find(
+            p => p.id === jid || p.id.split(':')[0] === jid.split('@')[0]
+        );
+
         const name =
             user?.notify ||
             user?.name ||
@@ -60,7 +63,7 @@ async function topMembers(sock, chatId) {
         text += `${medals[index]} *${name}*\n`;
         text += `↳ 💬 ${count} messages\n\n`;
 
-        mentions.push(jid);
+        mentions.push(jid); // maintenant toutes les mentions sont correctes
     });
 
     await sock.sendMessage(chatId, {

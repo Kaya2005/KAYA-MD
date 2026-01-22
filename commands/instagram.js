@@ -1,4 +1,5 @@
 import { igdl } from 'ruhend-scraper';
+import axios from 'axios';
 import { contextInfo } from '../system/contextInfo.js';
 
 export default {
@@ -14,12 +15,11 @@ export default {
       if (!text) {
         return kaya.sendMessage(
           m.chat,
-          { text: '❌ Please provide a valid Instagram link (post, reel, or IGTV).', contextInfo },
+          { text: '❌ Please provide a valid Instagram link.', contextInfo },
           { quoted: m }
         );
       }
 
-      // Check if it's a valid Instagram link
       if (!/https?:\/\/(www\.)?(instagram\.com|instagr\.am)\//.test(text)) {
         return kaya.sendMessage(
           m.chat,
@@ -28,45 +28,45 @@ export default {
         );
       }
 
-      // Temporary message
       await kaya.sendMessage(
         m.chat,
-        { text: '🔄 Fetching Instagram media... Please wait.', contextInfo },
+        { text: '🔄 Fetching Instagram media...', contextInfo },
         { quoted: m }
       );
 
-      // Retrieve media
       const downloadData = await igdl(text);
-      if (!downloadData?.data || downloadData.data.length === 0) {
+      if (!downloadData?.data?.length) {
         return kaya.sendMessage(
           m.chat,
-          { text: '❌ No media found. The post might be private or the link is invalid.', contextInfo },
+          { text: '❌ No media found. Private post or invalid link.', contextInfo },
           { quoted: m }
         );
       }
 
-      // Limit to 10 media items
       const mediaData = downloadData.data.slice(0, 10);
 
       for (const media of mediaData) {
         const mediaUrl = media.url;
-        const isVideo = media.type === 'video' || /\.(mp4|mov|avi|mkv|webm)$/i.test(mediaUrl);
+        const isVideo = media.type === 'video' || /\.(mp4)$/i.test(mediaUrl);
+
+        // 🔹 Télécharger en buffer
+        const response = await axios.get(mediaUrl, { responseType: 'arraybuffer' });
+        const buffer = Buffer.from(response.data, 'binary');
 
         if (isVideo) {
           await kaya.sendMessage(
             m.chat,
-            { video: { url: mediaUrl }, mimetype: 'video/mp4', caption: '✅ Instagram media downloaded!', contextInfo },
+            { video: buffer, mimetype: 'video/mp4', caption: '✅ Instagram media downloaded!', contextInfo },
             { quoted: m }
           );
         } else {
           await kaya.sendMessage(
             m.chat,
-            { image: { url: mediaUrl }, caption: '✅ Instagram media downloaded!', contextInfo },
+            { image: buffer, caption: '✅ Instagram media downloaded!', contextInfo },
             { quoted: m }
           );
         }
 
-        // Pause between sending to avoid blocks
         await new Promise(res => setTimeout(res, 1000));
       }
 
@@ -74,7 +74,7 @@ export default {
       console.error('❌ Instagram command error:', err);
       await kaya.sendMessage(
         m.chat,
-        { text: '❌ Unable to fetch Instagram media. Please try again later.', contextInfo },
+        { text: '❌ Unable to fetch Instagram media. Try again later.', contextInfo },
         { quoted: m }
       );
     }

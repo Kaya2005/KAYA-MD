@@ -7,6 +7,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const configPath = path.join(__dirname, "../data/config.json");
 
+// 🔹 Fonction utilitaire pour extraire le vrai numéro d'un JID
+function getNumberFromJid(jid) {
+  if (!jid) return null;
+  const match = jid.match(/^(\d+)@/);
+  return match ? match[1] : null;
+}
+
 export default {
   name: "sudo",
   description: "👑 Add an owner to the bot",
@@ -15,43 +22,37 @@ export default {
 
   run: async (kaya, m, args) => {
     try {
-      // ================== GET TARGET ==================
-      let target = null;
+      let targetJid = null;
 
       // Mention
-      if (m.mentionedJid?.length) target = m.mentionedJid[0];
+      if (m.mentionedJid?.length) targetJid = m.mentionedJid[0];
       // Reply
-      else if (m.message?.extendedTextMessage?.contextInfo?.participant) target = m.message.extendedTextMessage.contextInfo.participant;
-      // Written number
-      else if (args[0]) target = args[0];
+      else if (m.message?.extendedTextMessage?.contextInfo?.participant)
+        targetJid = m.message.extendedTextMessage.contextInfo.participant;
+      // Numéro écrit
+      else if (args[0])
+        targetJid = args[0].includes("@") ? args[0] : `${args[0]}@s.whatsapp.net`;
 
-      if (!target) {
+      if (!targetJid)
         return kaya.sendMessage(
           m.chat,
           { text: "⚠️ Mention a number, reply to a message, or type a number." },
           { quoted: m }
         );
-      }
 
-      // ================== CLEAN NUMBER ==================
-      // Keep only digits
-      const number = target.replace(/\D/g, "");
-
-      if (!number) {
+      const number = getNumberFromJid(targetJid);
+      if (!number)
         return kaya.sendMessage(
           m.chat,
           { text: "⚠️ Invalid number." },
           { quoted: m }
         );
-      }
 
-      // ================== LOAD CONFIG ==================
+      // Charger la config
       const data = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-
-      // 🔁 Ensure OWNERS is an array
       if (!Array.isArray(data.OWNERS)) data.OWNERS = [];
 
-      // ================== ALREADY OWNER? ==================
+      // Vérifier si déjà owner
       if (data.OWNERS.includes(number)) {
         return kaya.sendMessage(
           m.chat,
@@ -60,23 +61,22 @@ export default {
         );
       }
 
-      // ================== ADD OWNER ==================
+      // Ajouter owner
       data.OWNERS.push(number);
-
-      // Save config
       fs.writeFileSync(configPath, JSON.stringify(data, null, 2));
       saveConfig({ OWNERS: data.OWNERS });
-
-      // Update global variable
       global.owner = data.OWNERS;
 
-      // ================== CONFIRMATION ==================
+      // Confirmation avec mention
+      const jid = `${number}@s.whatsapp.net`;
       await kaya.sendMessage(
         m.chat,
-        { text: `✅ ${number} is now a *BOT OWNER*.` },
+        {
+          text: `✅ Added as BOT OWNER`,
+          mentions: [jid]
+        },
         { quoted: m }
       );
-
     } catch (err) {
       console.error("❌ sudo error:", err);
       await kaya.sendMessage(

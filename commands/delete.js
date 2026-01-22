@@ -10,7 +10,7 @@ export default {
   ownerOnly: false,
   usage: ".del <reply>",
 
-  run: async (kaya, m, args) => {
+  run: async (kaya, m) => {
     try {
       const chatId = m.chat;
 
@@ -20,14 +20,14 @@ export default {
 
       // 🔐 Check admin / owner
       const check = await checkAdminOrOwner(kaya, chatId, m.sender);
-      if (!check.isAdminOrOwner) {
+      if (!check.isAdmin && !check.isOwner) {
         return kaya.sendMessage(chatId, { text: "🚫 Admins or Owner only." }, { quoted: m });
       }
 
-      // 🗑️ Delete replied message
+      // 🗑️ Si message répondu
       if (m.quoted) {
         try {
-          await kaya.sendMessage(chatId, { delete: { ...m.quoted.key } });
+          await kaya.sendMessage(chatId, { delete: m.quoted.key });
           return kaya.sendMessage(chatId, { text: "✅ Message deleted successfully." }, { quoted: m });
         } catch (err) {
           console.error("[DEL] Reply Error:", err);
@@ -35,7 +35,7 @@ export default {
         }
       }
 
-      // ❌ No reply provided
+      // ⚠️ Si aucun reply
       return kaya.sendMessage(chatId, { text: "⚠️ Reply to the message you want to delete." }, { quoted: m });
 
     } catch (err) {

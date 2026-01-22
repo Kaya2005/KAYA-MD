@@ -1,11 +1,13 @@
+// ==================== commands/tg.js ====================
 import fetch from 'node-fetch';
 import fs from 'fs';
 import path from 'path';
 import { writeExif } from '../lib/exif.js';
 
 const delay = time => new Promise(res => setTimeout(res, time));
-const BATCH_SIZE = 5;  // Stickers sent in parallel
-const BATCH_DELAY = 2000; // ms delay between each batch
+const BATCH_SIZE = 5;
+const BATCH_DELAY = 2000;
+const MAX_STICKERS = 120;
 
 export default {
   name: 'tg',
@@ -24,7 +26,6 @@ export default {
         );
       }
 
-      // ✅ Correct regex for mobile & PC
       if (!/^https?:\/\/t\.me\/addstickers\/[A-Za-z0-9_]+$/i.test(url)) {
         return kaya.sendMessage(
           m.chat,
@@ -33,24 +34,26 @@ export default {
         );
       }
 
+      // 👤 pseudo de l'utilisateur (packname + author)
+      const pushName = m.pushName || m.sender.split('@')[0] || 'User';
+
       const packName = url.split('/').pop();
       const botToken = '7801479976:AAGuPL0a7kXXBYz6XUSR_ll2SR5V_W6oHl4';
 
-      // Fetch the pack
       const res = await fetch(`https://api.telegram.org/bot${botToken}/getStickerSet?name=${encodeURIComponent(packName)}`);
       if (!res.ok) throw new Error(`Telegram API error: ${res.status}`);
+
       const packData = await res.json();
       if (!packData.ok || !packData.result) throw new Error('Invalid or private pack');
 
-      const stickers = packData.result.stickers;
+      let stickers = packData.result.stickers;
+      if (stickers.length > MAX_STICKERS) stickers = stickers.slice(0, MAX_STICKERS);
+
       await kaya.sendMessage(
         m.chat,
         { text: `📦 Pack found: ${stickers.length} stickers\n⏳ Downloading...` },
         { quoted: m }
       );
-
-      const tmpDir = path.join(process.cwd(), 'tmp');
-      if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
       let success = 0;
 
@@ -66,20 +69,32 @@ export default {
             const fileUrl = `https://api.telegram.org/file/bot${botToken}/${fileData.result.file_path}`;
             const buffer = await (await fetch(fileUrl)).arrayBuffer();
 
-            const tmpFile = { data: Buffer.from(buffer), mimetype: sticker.is_video ? 'video/mp4' : 'image/png' };
-            const exifFile = await writeExif(tmpFile, { packname: packName, author: 'Telegram', categories: [sticker.emoji || '🤖'] });
+            const tmpFile = {
+              data: Buffer.from(buffer),
+              mimetype: sticker.is_video ? 'video/mp4' : 'image/png'
+            };
 
-            const stickerBuffer = fs.readFileSync(exifFile);
-            await kaya.sendMessage(m.chat, { sticker: stickerBuffer });
-            fs.unlinkSync(exifFile);
+            // ✅ packname + author = pseudo de l'utilisateur
+            const exifFilePath = await writeExif(tmpFile, {
+              packname: pushName,
+              author: pushName,
+              categories: [sticker.emoji || '🤖']
+            });
 
+            const stickerBuffer = fs.readFileSync(exifFilePath);
+
+            await kaya.sendMessage(m.chat, {
+              sticker: stickerBuffer
+            });
+
+            fs.unlinkSync(exifFilePath);
             success++;
+
           } catch (err) {
             console.error(`❌ Sticker error ${i + index}:`, err);
           }
         }));
 
-        // Pause between batches
         await delay(BATCH_DELAY);
       }
 

@@ -1,4 +1,5 @@
-import { contextInfo } from '../system/contextInfo.js';
+import { getBotImage } from '../system/botAssets.js';
+import { buildTagAllMessage } from '../system/tagallTemplate.js';
 
 export default {
   name: "tagall",
@@ -8,12 +9,12 @@ export default {
   group: true,
   admin: false,
 
-  execute: async (kaya, m, args) => {
+  execute: async (kaya, m) => {
     try {
       if (!m.isGroup) {
         return kaya.sendMessage(
           m.chat,
-          { text: "⛔ Cette commande est uniquement disponible dans les groupes.", contextInfo },
+          { text: "⛔ Cette commande est uniquement disponible dans les groupes." },
           { quoted: m }
         );
       }
@@ -25,34 +26,32 @@ export default {
       const date = now.toLocaleDateString('fr-FR');
       const time = now.toLocaleTimeString('fr-FR');
 
-      // 🔢 Liste numérotée + en ligne
       const mentionText = participants
         .map((p, i) => `${i + 1}. @${p.split('@')[0]}`)
         .join('\n');
 
-      const fullMessage = 
-`╔═══════ KAYA-MD ═══════
-📅 Date : ${date}
-⏰ Heure : ${time}
-👥 Membres : ${participants.length}
-╚═══════════════════════
-
-${mentionText}`;
+      const fullMessage = buildTagAllMessage({
+        date,
+        time,
+        membersCount: participants.length,
+        mentionText
+      });
 
       await kaya.sendMessage(
         m.chat,
         {
-          text: fullMessage,
+          image: { url: getBotImage() },
+          caption: fullMessage,
           mentions: participants
         },
         { quoted: m }
       );
 
     } catch (error) {
-      console.error("Erreur dans la commande tagall :", error);
+      console.error("❌ Erreur tagall :", error);
       await kaya.sendMessage(
         m.chat,
-        { text: "❌ Une erreur est survenue lors de la mention.", contextInfo },
+        { text: "❌ Une erreur est survenue lors de la mention." },
         { quoted: m }
       );
     }

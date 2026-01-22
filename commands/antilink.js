@@ -101,6 +101,20 @@ export default {
         );
       }
 
+      // ---------- BOT ADMIN CHECK ----------
+      const groupMetadata = await kaya.groupMetadata(chatId).catch(() => null);
+      const botIsAdmin = groupMetadata?.participants.some(
+        p => p.jid === kaya.user.jid && p.admin
+      );
+
+      if (!botIsAdmin && action !== "off") {
+        return kaya.sendMessage(
+          chatId,
+          { text: "❌ Cannot enable/set anti-link: I need to be admin first." },
+          { quoted: m }
+        );
+      }
+
       // ---------- ACTIONS ----------
       if (action === "on") {
         global.antiLinkGroups[chatId] = { enabled: true, mode: "warn" };
@@ -144,72 +158,57 @@ export default {
   },
 
   // ==================== ANTI-LINK DETECTION ====================
-  detect: async (kaya, m) => {
-    try {
-      if (!m.isGroup || m.key?.fromMe) return;
+detect: async (kaya, m) => {
+  try {
+    if (!m.isGroup || m.key?.fromMe) return;
 
-      const chatId = m.chat;
-      if (!global.antiLinkGroups?.[chatId]?.enabled) return;
+    const chatId = m.chat;
+    if (!global.antiLinkGroups?.[chatId]?.enabled) return;
 
-      const sender = m.sender;
-      const mode = global.antiLinkGroups[chatId].mode;
+    const sender = m.sender;
+    const mode = global.antiLinkGroups[chatId].mode;
 
-      // ✅ Proper admin/owner check
-      const check = await checkAdminOrOwner(kaya, chatId, sender);
-      if (check.isAdminOrOwner) return;
+    // ✅ Skip admin/owner
+    const check = await checkAdminOrOwner(kaya, chatId, sender);
+    if (check.isAdminOrOwner) return;
 
-      const linkRegex = /(https?:\/\/|www\.|chat\.whatsapp\.com|wa\.me)/i;
-      if (!linkRegex.test(m.body)) return;
+    const linkRegex = /(https?:\/\/|www\.|chat\.whatsapp\.com|wa\.me)/i;
+    if (!linkRegex.test(m.body)) return;
 
-      // 🗑️ Delete message
-      await kaya.sendMessage(chatId, { delete: m.key }).catch(() => {});
+    // 🗑️ Delete message (TOUS LES MODES)
+    await kaya.sendMessage(chatId, { delete: m.key }).catch(() => {});
 
-      // 🚫 MODE DELETE
-      if (mode === "delete") {
-        return kaya.sendMessage(chatId, {
-          text: `🚫 LINKS NOT ALLOWED\n👤 @${sender.split("@")[0]}`,
-          mentions: [sender]
-        });
-      }
+    // 🚫 MODE KICK (sans message)
+    if (mode === "kick") {
+      return kaya.groupParticipantsUpdate(chatId, [sender], "remove");
+    }
 
-      // 🚨 MODE KICK
-      if (mode === "kick") {
-        await kaya.sendMessage(chatId, {
-          text: `🚫 @${sender.split("@")[0]} kicked for sending a link.`,
-          mentions: [sender]
-        });
-        return kaya.groupParticipantsUpdate(chatId, [sender], "remove");
-      }
+    // ⚠️ MODE WARN (message seulement ici)
+    if (mode === "warn") {
+      if (!global.userWarns[chatId]) global.userWarns[chatId] = {};
+      global.userWarns[chatId][sender] = (global.userWarns[chatId][sender] || 0) + 1;
 
-      // ⚠️ MODE WARN
-      if (mode === "warn") {
-        if (!global.userWarns[chatId]) global.userWarns[chatId] = {};
-        global.userWarns[chatId][sender] = (global.userWarns[chatId][sender] || 0) + 1;
+      const warns = global.userWarns[chatId][sender];
 
-        const warns = global.userWarns[chatId][sender];
-
-        await kaya.sendMessage(chatId, {
-          text:
+      await kaya.sendMessage(chatId, {
+        text:
 `⚠️ ANTI-LINK
 👤 @${sender.split("@")[0]}
 📊 Warning: ${warns}/4`,
-          mentions: [sender]
-        });
+        mentions: [sender]
+      });
 
-        if (warns >= 4) {
-          delete global.userWarns[chatId][sender];
-
-          await kaya.sendMessage(chatId, {
-            text: `🚫 @${sender.split("@")[0]} kicked after 4 warnings.`,
-            mentions: [sender]
-          });
-
-          await kaya.groupParticipantsUpdate(chatId, [sender], "remove");
-        }
+      if (warns >= 4) {
+        delete global.userWarns[chatId][sender];
+        await kaya.groupParticipantsUpdate(chatId, [sender], "remove");
       }
-
-    } catch (e) {
-      console.error("❌ AntiLink detect error:", e);
     }
+
+    // 🚫 MODE DELETE (pas de message)
+    // Rien de plus à faire, le message est déjà supprimé
+
+} catch (e) {
+    console.error("❌ AntiLink detect error:", e);
   }
+}
 };

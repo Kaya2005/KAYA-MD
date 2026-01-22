@@ -1,60 +1,54 @@
-// ================= commands/ping.js =================
-import { contextInfo } from '../system/contextInfo.js';
+import config from '../config.js';
+import { BOT_NAME, getBotImage } from '../system/botAssets.js';
+
+function formatUptime(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  return `${h}h ${m}m ${s}s`;
+}
 
 export default {
   name: 'ping',
-  alias: [],
+  aliases: [],
   category: 'General',
-  description: '🏓 Check the bot latency and status',
+  description: '🏓 Check bot latency and status',
   ownerOnly: false,
   group: false,
 
-  async run(kaya, m, args) {
+  run: async (kaya, m) => {
     try {
       const start = Date.now();
 
-      // Temporary "typing" message
-      const tempMsg = await kaya.sendMessage(
-        m.chat,
-        { text: '⏳ Calculating latency...' },
-        { quoted: m }
-      );
+      await kaya.sendMessage(m.chat, { text: '🏓 Pong...' }, { quoted: m });
 
-      const end = Date.now();
-      const latency = end - start;
+      const latency = Date.now() - start;
+      const uptime = formatUptime(process.uptime());
+      const mode = config.public ? 'PUBLIC' : 'PRIVATE';
 
-      const uptimeSeconds = process.uptime();
-      const hours = Math.floor(uptimeSeconds / 3600);
-      const minutes = Math.floor((uptimeSeconds % 3600) / 60);
-      const seconds = Math.floor(uptimeSeconds % 60);
-
-      const response = `
-╭───〔 🏓 PONG 〕───╮
-│ ✅ Status   : *KAYA-MD* is online and ready!
-│ ⏱️ Latency : *${latency} ms*
-│ ⚡ Uptime  : *${hours}h ${minutes}m ${seconds}s*
-│ 🚀 Performance : *Ultra fast* ⚡
-╰───────────────────╯
+      const message = `
+▉─『 🏓 ${BOT_NAME} 』─▉
+┃ ✅ Status   : Online & Ready
+┃ ⏱️ Latency  : ${latency} ms
+┃ ⌛ Uptime   : ${uptime}
+┃ 🔓 Mode     : ${mode}
+▉─────────────────▉
       `.trim();
 
-      // Edit the previous message with the final result (if supported)
       await kaya.sendMessage(
         m.chat,
         {
-          text: response,
-          contextInfo: { ...contextInfo, mentionedJid: [m.sender] }
+          image: { url: getBotImage() },
+          caption: message
         },
         { quoted: m }
       );
 
-      // Optional: delete the temporary message after sending result
-      // await kaya.deleteMessage(m.chat, { id: tempMsg.key.id, remoteJid: m.chat });
-
     } catch (err) {
-      console.error('❌ Ping command error:', err);
+      console.error('❌ ping.js error:', err);
       await kaya.sendMessage(
         m.chat,
-        { text: '⚠️ Unable to calculate latency.', contextInfo },
+        { text: '⚠️ Unable to check latency. Please try again.' },
         { quoted: m }
       );
     }

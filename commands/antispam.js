@@ -65,12 +65,27 @@ export default {
       return kaya.sendMessage(chatId, { text: "❌ Anti-spam disabled.", contextInfo }, { quoted: m });
     }
 
+    // 🔒 BOT ADMIN CHECK avant activation
+    const groupMetadata = await kaya.groupMetadata(chatId).catch(() => null);
+    const botIsAdmin = groupMetadata?.participants.some(
+      p => p.jid === kaya.user.jid && p.admin
+    );
+
+    if (!botIsAdmin) {
+      return kaya.sendMessage(
+        chatId,
+        { text: "❌ Bot must be admin.", contextInfo },
+        { quoted: m }
+      );
+    }
+
+    // ✅ Activer anti-spam
     global.antiSpamGroups[chatId] = { enabled: true };
     saveData(global.antiSpamGroups);
 
     return kaya.sendMessage(
       chatId,
-      { text: `✅ Anti-spam enabled\n🚨 Flood detected = AUTOMATIC KICK`, contextInfo },
+      { text: `✅ Anti-spam enabled\n🚨 All spam messages will be automatically deleted\n🚨 Flood detected = AUTOMATIC KICK`, contextInfo },
       { quoted: m }
     );
   },
@@ -100,6 +115,9 @@ export default {
 
       // 🧹 Remove old timestamps outside window
       global.spamTracker[chatId][sender] = userData.filter(t => now - t <= TIME_WINDOW);
+
+      // 🗑️ Delete current message considered spam
+      await kaya.sendMessage(chatId, { delete: m.key }).catch(() => {});
 
       // 🚨 FLOOD DETECTED
       if (global.spamTracker[chatId][sender].length >= MESSAGE_LIMIT) {

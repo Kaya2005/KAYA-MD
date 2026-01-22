@@ -6,11 +6,10 @@ export default {
   name: 'setbotimage',
   description: 'Change the bot image via a link',
   category: 'Owner',
-  ownerOnly: true, // ✅ handled by the handler
+  ownerOnly: true,
 
   run: async (sock, m, args) => {
     try {
-      // Check if a link is provided
       const url = args[0];
       if (!url || !url.startsWith('http')) {
         return sock.sendMessage(
@@ -20,11 +19,10 @@ export default {
         );
       }
 
-      // Download the image from the link
+      // Check if the link is a valid image
       const res = await axios.get(url, { responseType: 'arraybuffer' });
-
-      // Check if the file is actually an image
       const contentType = res.headers['content-type'];
+
       if (!contentType || !contentType.startsWith('image/')) {
         return sock.sendMessage(
           m.chat,
@@ -33,10 +31,8 @@ export default {
         );
       }
 
-      const buffer = Buffer.from(res.data);
-
-      // Save the image
-      setBotImage(buffer);
+      // Save the image URL
+      setBotImage(url);
 
       await sock.sendMessage(
         m.chat,
