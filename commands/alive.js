@@ -1,5 +1,5 @@
 import config from '../config.js';
-import { getBotImage } from '../system/botAssets.js';
+import { sendWithBotImage } from '../system/botAssets.js';
 import { buildAliveMessage } from '../system/botAliveTemplate.js';
 
 function formatUptime(seconds) {
@@ -26,14 +26,13 @@ export default {
         uptime: formatUptime(process.uptime())
       });
 
-      await kaya.sendMessage(
+      await sendWithBotImage(
+        kaya,
         m.chat,
-        {
-          image: { url: getBotImage() },
-          caption: message
-        },
+        { caption: message },
         { quoted: m }
       );
+
     } catch (err) {
       console.error('❌ Error alive.js :', err);
       await kaya.sendMessage(
