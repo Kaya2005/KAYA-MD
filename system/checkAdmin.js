@@ -9,7 +9,9 @@ export default async function checkAdminOrOwner(sock, chatId, sender) {
   const senderNumber = senderJid.split('@')[0];
 
   // 🔹 Owners (normalisés)
-  const ownerNumbers = (config.OWNERS || []).map(n => n.replace(/\D/g, ''));
+  const ownerNumbers = (config.OWNERS || []).map(n =>
+    n.replace(/\D/g, '')
+  );
 
   const isBotOwner = ownerNumbers.includes(senderNumber);
 
@@ -17,7 +19,9 @@ export default async function checkAdminOrOwner(sock, chatId, sender) {
   if (!isGroup) {
     return {
       isAdmin: false,
-      isOwner: isBotOwner,
+      isGroupOwner: false,
+      isBotOwner,
+      isOwner: isBotOwner, // 🔐 UNIQUEMENT BOT OWNER
       isAdminOrOwner: isBotOwner,
       participant: null
     };
@@ -31,6 +35,8 @@ export default async function checkAdminOrOwner(sock, chatId, sender) {
     console.error('❌ groupMetadata error:', e);
     return {
       isAdmin: false,
+      isGroupOwner: false,
+      isBotOwner,
       isOwner: isBotOwner,
       isAdminOrOwner: isBotOwner,
       participant: null
@@ -42,7 +48,7 @@ export default async function checkAdminOrOwner(sock, chatId, sender) {
     p => decodeJid(p.id) === senderJid
   );
 
-  // ✅ ADMIN CHECK (Baileys correct)
+  // ✅ ADMIN CHECK
   const isAdmin =
     participant?.admin === 'admin' ||
     participant?.admin === 'superadmin';
@@ -52,12 +58,17 @@ export default async function checkAdminOrOwner(sock, chatId, sender) {
     metadata.owner &&
     decodeJid(metadata.owner) === senderJid;
 
-  const isOwner = isBotOwner || isGroupOwner;
-
   return {
     isAdmin,
-    isOwner,
-    isAdminOrOwner: isAdmin || isOwner,
+    isGroupOwner,
+    isBotOwner,
+
+    // 🔐 OWNER = SEULEMENT BOT OWNER
+    isOwner: isBotOwner,
+
+    // 👥 Admin OU Bot Owner
+    isAdminOrOwner: isAdmin || isBotOwner,
+
     participant
   };
 }

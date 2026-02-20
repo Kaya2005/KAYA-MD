@@ -1,35 +1,37 @@
-import { BOT_NAME, BOT_SLOGAN, BOT_VERSION } from './botAssets.js';
+import { BOT_NAME, BOT_SLOGAN } from './botAssets.js';
 
-export function buildMenuText({ date, user, uptime, totalCmds, mode, menuList }) {
+export function buildMenuText({
+  user,
+  userId,
+  prefix = '.',
+  mode,
+  totalCmds,
+  active,
+  menuList
+}) {
   return `
-       ▉ \`${BOT_NAME}\` ▉
-▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-*📅 Date        : ${date}*
-*👤 User        : @${user}*
-*⚡ Uptime      : ${uptime}*
-*🧩 Commands    : ${totalCmds}*
-*🌐 Bot Mode    : ${mode}*
-*🧪 Bot Version : v${BOT_VERSION}*
-▰▰▰▰▰▰▰▰▰▰▰▰▰▰
+╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄◈
+┆ ✦ ${BOT_NAME} ✦
+╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄◈
+╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄◈
+┆❱ user     : *${user}*
+┆❱ prefix   : *${prefix}*
+┆❱ mode     : *${mode}*
+┆❱ cmds     : *${totalCmds}*
+┆❱ active   : *${active}*
+╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄◈
 
-╭───▰ \`𝐌𝐄𝐍𝐔\`  ▰───╮
 ${menuList}
-╰─────────────────╯
 
 ${BOT_SLOGAN}
-
- *Reply with a number*
 `.trim();
 }
 
 export function buildMenuCategoryText({ cat, cmds }) {
   return `
-*▉『 \`${cat} MENU\` 』▉*
-▰▰▰▰▰▰▰▰▰▰▰▰▰
-
-${cmds.map(c => `• ${c}`).join('\n')}
-
-▰▰▰▰▰▰▰▰▰▰▰▰▰
-${BOT_SLOGAN}
+> ╢ ${cat.toUpperCase()} ♰
+╭┄┄┄┄┄┄┄┄┄┄┄┄┄◈
+${cmds.map(c => `┆${c.toLowerCase()}`).join('\n')}
+╰┄┄┄┄┄┄┄┄┄┄┄┄┄◈
 `.trim();
 }

@@ -16,6 +16,8 @@ if (!global.botModes.autoreact) global.botModes.autoreact = { enabled: false };
 if (global.autoStatus === undefined) global.autoStatus = false;
 if (global.allPrefix === undefined) global.allPrefix = false;
 
-// 🔹 Groupes
-if (!global.antiLinkGroups) global.antiLinkGroups = {};
-if (!global.antiSpamGroups) global.antiSpamGroups = {};
+// 🔹 Groupes (⚠️ NE PAS RESET)
+if (global.antiLinkGroups === undefined) global.antiLinkGroups = null;
+if (global.antiSpamGroups === undefined) global.antiSpamGroups = null;
+if (global.antiBotGroups === undefined) global.antiBotGroups = null;
+if (global.botWarns === undefined) global.botWarns = null;

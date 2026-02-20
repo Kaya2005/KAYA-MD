@@ -1,7 +1,6 @@
 // ==================== system/botStatus.js ====================
 import fs from 'fs';
 import path from 'path';
-import { handleAutoread } from '../commands/autoread.js';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -14,6 +13,7 @@ const botModesPath = path.join(dataDir, 'botModes.json');
 
 // ================== Charger les modes ==================
 export function loadBotModes() {
+  // Création automatique si absent
   if (!fs.existsSync(botModesPath)) {
     fs.writeFileSync(
       botModesPath,
@@ -21,18 +21,40 @@ export function loadBotModes() {
         typing: false,
         recording: false,
         autoreact: { enabled: false },
-        autoread: { enabled: false }
+        antilink: {},
+        antispam: {},
+        antitag: {}
       }, null, 2)
     );
   }
+
   const data = JSON.parse(fs.readFileSync(botModesPath, 'utf-8'));
-  global.botModes = { ...global.botModes, ...data };
+
+  // Structure sécurisée anti-reset
+  global.botModes = {
+    typing: false,
+    recording: false,
+    autoreact: { enabled: false },
+
+    // 🔹 Données persistantes des commandes
+    antilink: global.antiLinkGroups ?? data.antilink ?? {},
+    antispam: global.antiSpamGroups ?? data.antispam ?? {},
+    antitag: global.antiTagGroups ?? data.antitag ?? {},
+
+    // 🔹 Autres données du fichier
+    ...data
+  };
+
   return global.botModes;
 }
 
 // ================== Sauvegarder les modes ==================
 export function saveBotModes(modes) {
-  global.botModes = { ...global.botModes, ...modes };
+  global.botModes = {
+    ...global.botModes,
+    ...modes
+  };
+
   fs.writeFileSync(botModesPath, JSON.stringify(global.botModes, null, 2));
   console.log('✅ botModes sauvegardé');
 }
@@ -45,19 +67,28 @@ export async function handleBotModes(sock, m, randomEmoji = defaultRandomEmoji) 
   try {
     if (!m?.message) return;
 
-    // TYPING / RECORDING
-    if (global.botModes.typing) await sock.sendPresenceUpdate('composing', m.chat);
-    if (global.botModes.recording) await sock.sendPresenceUpdate('recording', m.chat);
+    // ================= TYPING =================
+    if (global.botModes.typing) {
+      await sock.sendPresenceUpdate('composing', m.chat);
+    }
 
-    // AUTOREACT
+    // ================= RECORDING =================
+    if (global.botModes.recording) {
+      await sock.sendPresenceUpdate('recording', m.chat);
+    }
+
+    // ================= AUTOREACT =================
     if (global.botModes.autoreact?.enabled) {
-      await sock.sendMessage(m.chat, { react: { text: randomEmoji(), key: m.key } }).catch(() => {});
+      await sock.sendMessage(m.chat, {
+        react: { text: randomEmoji(), key: m.key }
+      }).catch(() => {});
     }
 
-    // AUTOREAD
-    if (global.botModes.autoread?.enabled) {
-      await handleAutoread(sock, m).catch(() => {});
-    }
+    // ⚠️ IMPORTANT :
+    // antilink, antispam & antitag
+    // utilisent leur propre fonction detect()
+    // botModes sert uniquement à stocker leur état
+    // donc on ne les gère PAS ici volontairement
 
   } catch (err) {
     console.error('❌ BotModes error:', err);
