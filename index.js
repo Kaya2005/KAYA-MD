@@ -7,6 +7,9 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 global.menuSessions = {};
 // ================== CONFIG & GLOBALS ==================
+import { getBotImagePayload } from './system/botAssets.js';
+import antiActu from './commands/antiChannelActu.js';
+commands.antiActu = antiActu;
 import config from './config.js';
 import './system/globals.js';
 import { loadBotModes } from './system/botStatus.js';
@@ -96,34 +99,52 @@ async function startBot() {
     await loadCommands();
     console.log(chalk.cyan(`📂 Commandes chargées : ${Object.keys(commands).length}`));
 
-    // ================== CONNECTION ==================
-    sock.ev.on('connection.update', async ({ connection, lastDisconnect }) => {
-      if (connection === 'open') {
-        console.log(chalk.green('✅ KAYA-MD CONNECTÉ'));
 
-        try {
-          const jid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-          await sock.sendMessage(jid, {
-            image: { url: getBotImage() },
-            caption: connectionMessage()
-          });
-        } catch {}
+  // ================== CONNECTION ==================
+sock.ev.on('connection.update', async ({ connection, lastDisconnect }) => {
+  try {
+    if (connection === 'open') {
+      console.log(chalk.green('✅ KAYA-MD CONNECTÉ'));
 
-        await checkUpdate(sock);
+      // Préparer le JID pour s’envoyer le message
+      const jid = sock.user?.id?.split(':')[0] + '@s.whatsapp.net';
+      if (!jid) throw new Error('sock.user.id non défini');
+
+      // Récupérer le payload de l’image du bot
+      const botImagePayload = getBotImage(); // { type, value }
+
+      let imageField;
+      if (botImagePayload?.type === 'url') imageField = { url: botImagePayload.value };
+      else if (botImagePayload?.type === 'buffer') imageField = botImagePayload.value;
+
+      // Envoyer le message de connexion
+      if (imageField) {
+        await sock.sendMessage(jid, {
+          image: imageField,
+          caption: connectionMessage()
+        });
+      } else {
+        await sock.sendMessage(jid, { text: connectionMessage() });
       }
 
-      if (connection === 'close') {
-        const reason = lastDisconnect?.error?.output?.statusCode;
-        console.log(chalk.red('❌ Déconnecté :'), reason);
+      console.log(chalk.cyan('ℹ️ Message de connexion envoyé'));
+      await checkUpdate(sock);
+    }
 
-        if (reason !== DisconnectReason.loggedOut) {
-          setTimeout(startBot, 5000);
-        } else {
-          console.log(chalk.red('🚫 Session expirée – supprime session/creds.json'));
-        }
+    if (connection === 'close') {
+      const reason = lastDisconnect?.error?.output?.statusCode;
+      console.log(chalk.red('❌ Déconnecté :'), reason);
+
+      if (reason !== DisconnectReason.loggedOut) {
+        setTimeout(startBot, 5000);
+      } else {
+        console.log(chalk.red('🚫 Session expirée – supprime session/creds.json'));
       }
-    });
-
+    }
+  } catch (err) {
+    console.error('❌ connection.update error:', err);
+  }
+});
 // ================== MESSAGES UPDATES ==================
 sock.ev.on('messages.upsert', async ({ messages }) => {
   if (!messages?.length) return;

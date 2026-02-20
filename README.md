@@ -1,7 +1,7 @@
 # 🤖 KAYA-MD — WhatsApp Bot
 
 <p align="center">
-  <img src="https://files.catbox.moe/k952o7.jpg" alt="KAYA-MD Banner" width="100%" style="border-radius:15px; box-shadow: 0 8px 20px rgba(0,0,0,0.2);">
+  <img src="https://files.catbox.moe/zcg6kh.jpg" alt="KAYA-MD Banner" width="100%">
 </p>
 
 **KAYA-MD** is a WhatsApp bot built with **Node.js and Baileys**.  
@@ -13,21 +13,10 @@ The bot uses an **online session system**, avoiding local QR scans and simplifyi
 ## 🌐 Session Generator
 
 <p align="center">
-  <a href="https://kaya-session-id.vercel.app" target="_blank" style="text-decoration:none;">
-    <span style="
-      display:inline-block;
-      padding:14px 28px;
-      font-size:16px;
-      font-weight:bold;
-      border:2px solid #28a745;
-      border-radius:12px;
-      background: linear-gradient(145deg, #28a745, #1e7e34);
-      color:white;
-      box-shadow: 0 6px 15px rgba(0,0,0,0.3);
-      transition: all 0.2s ease-in-out;
-    " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+  <a href="https://kaya-session-id.vercel.app" target="_blank">
+    <button style="padding:12px 20px;font-size:16px;border:none;border-radius:8px;background:#28a745;color:white;cursor:pointer;">
       🔐 Generate WhatsApp Session
-    </span>
+    </button>
   </a>
 </p>
 
@@ -38,21 +27,10 @@ Connect your bot using **Pair Code or QR Code**.
 ## 🆓 Free Deployment (Katabump)
 
 <p align="center">
-  <a href="https://dashboard.katabump.com/auth/login#483bf6" target="_blank" style="text-decoration:none;">
-    <span style="
-      display:inline-block;
-      padding:14px 28px;
-      font-size:16px;
-      font-weight:bold;
-      border:2px solid #007bff;
-      border-radius:12px;
-      background: linear-gradient(145deg, #007bff, #0056b3);
-      color:white;
-      box-shadow: 0 6px 15px rgba(0,0,0,0.3);
-      transition: all 0.2s ease-in-out;
-    " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+  <a href="https://dashboard.katabump.com/auth/login#483bf6" target="_blank">
+    <button style="padding:12px 20px;font-size:16px;border:none;border-radius:8px;background:#007bff;color:white;cursor:pointer;">
       🚀 Deploy on Katabump
-    </span>
+    </button>
   </a>
 </p>
 
@@ -65,21 +43,10 @@ Connect your bot using **Pair Code or QR Code**.
 ## 📺 YouTube Tutorials
 
 <p align="center">
-  <a href="https://www.youtube.com/@TECHword-1" target="_blank" style="text-decoration:none;">
-    <span style="
-      display:inline-block;
-      padding:14px 28px;
-      font-size:16px;
-      font-weight:bold;
-      border:2px solid #ff0000;
-      border-radius:12px;
-      background: linear-gradient(145deg, #ff0000, #b30000);
-      color:white;
-      box-shadow: 0 6px 15px rgba(0,0,0,0.3);
-      transition: all 0.2s ease-in-out;
-    " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+  <a href="https://www.youtube.com/@TECHword-1" target="_blank">
+    <button style="padding:12px 20px;font-size:16px;border:none;border-radius:8px;background:#ff0000;color:white;cursor:pointer;">
       ▶️ Visit YouTube Channel
-    </span>
+    </button>
   </a>
 </p>
 
@@ -94,21 +61,10 @@ Tutorials include:
 ## 📲 Official WhatsApp Channel
 
 <p align="center">
-  <a href="https://whatsapp.com/channel/0029Vb6FFPM002T3SKA6bb2D" target="_blank" style="text-decoration:none;">
-    <span style="
-      display:inline-block;
-      padding:14px 28px;
-      font-size:16px;
-      font-weight:bold;
-      border:2px solid #25D366;
-      border-radius:12px;
-      background: linear-gradient(145deg, #25D366, #1c9e4a);
-      color:white;
-      box-shadow: 0 6px 15px rgba(0,0,0,0.3);
-      transition: all 0.2s ease-in-out;
-    " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+  <a href="https://whatsapp.com/channel/0029Vb6FFPM002T3SKA6bb2D" target="_blank">
+    <button style="padding:12px 20px;font-size:16px;border:none;border-radius:8px;background:#25D366;color:white;cursor:pointer;">
       💬 Join WhatsApp Channel
-    </span>
+    </button>
   </a>
 </p>
 
@@ -132,40 +88,19 @@ The user is responsible for using this bot in compliance with **WhatsApp’s Ter
 
 ## 👑 Author
 
-**KAYA TECH** — Creator of **KAYA-MD**
+**KAYA TECH**  
+Creator of **KAYA-MD**
 
 <p align="center">
-  <a href="https://www.youtube.com/@TECHword-1" target="_blank" style="text-decoration:none;">
-    <span style="
-      display:inline-block;
-      padding:10px 20px;
-      margin:5px;
-      font-weight:bold;
-      border:2px solid #ff0000;
-      border-radius:10px;
-      background:#ff4d4d;
-      color:white;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-      transition: transform 0.2s;
-    " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+  <a href="https://www.youtube.com/@TECHword-1" target="_blank">
+    <button style="padding:10px 18px;margin:5px;border:none;border-radius:8px;background:#ff0000;color:white;">
       📺 YouTube
-    </span>
+    </button>
   </a>
-  <a href="https://whatsapp.com/channel/0029Vb6FFPM002T3SKA6bb2D" target="_blank" style="text-decoration:none;">
-    <span style="
-      display:inline-block;
-      padding:10px 20px;
-      margin:5px;
-      font-weight:bold;
-      border:2px solid #25D366;
-      border-radius:10px;
-      background:#38e080;
-      color:white;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-      transition: transform 0.2s;
-    " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+  <a href="https://whatsapp.com/channel/0029Vb6FFPM002T3SKA6bb2D" target="_blank">
+    <button style="padding:10px 18px;margin:5px;border:none;border-radius:8px;background:#25D366;color:white;">
       📲 WhatsApp Channel
-    </span>
+    </button>
   </a>
 </p>
 
