@@ -1,52 +1,56 @@
 export default {
   name: "allkaya",
-  description: "📢 Send a message (text + link + image) to all groups (Owner only)",
+  description: "📢 Send a message to all groups (Owner only)",
   category: "Owner",
   ownerOnly: true,
   usage: ".allkaya <message> | <image_url (optional)>",
 
   run: async (kaya, m, args) => {
     try {
-      // 🔹 Récupération du message
       const input = args.join(" ").trim();
-      if (!input) return kaya.sendMessage(m.chat, { text: "❌ Please provide a message." }, { quoted: m });
+      if (!input)
+        return kaya.sendMessage(m.chat, { text: "❌ Please provide a message." }, { quoted: m });
 
-      // 🔹 Vérifier si un lien d'image est fourni (séparé par "|")
       let [text, imageUrl] = input.split("|").map(s => s.trim());
 
-      // 🔹 Récupérer tous les groupes
-      const chats = await kaya.chats.all();
-      const groups = chats.filter(c => c.jid.endsWith("@g.us"));
+      // ✅ Récupération correcte des groupes (Baileys v7)
+      const groupsData = await kaya.groupFetchAllParticipating();
+      const groups = Object.values(groupsData);
 
-      if (groups.length === 0) {
+      if (!groups.length)
         return kaya.sendMessage(m.chat, { text: "❌ No groups found." }, { quoted: m });
-      }
 
-      // 🔹 Envoyer le message à tous les groupes
       let success = 0;
       let failed = 0;
 
       for (const group of groups) {
         try {
+          const jid = group.id;
+
           const message = imageUrl
             ? { image: { url: imageUrl }, caption: text }
             : { text };
-          await kaya.sendMessage(group.jid, message);
+
+          await kaya.sendMessage(jid, message);
           success++;
+
+          await new Promise(r => setTimeout(r, 1200)); // anti-ban delay
+
         } catch (err) {
           failed++;
-          console.error(`❌ Failed to send to ${group.jid}:`, err);
+          console.error(`❌ Failed to send to ${group.id}:`, err?.message || err);
         }
       }
 
-      // 🔹 Résumé
       return kaya.sendMessage(m.chat, {
-        text: `📢 Message sent to all groups!\n✅ Success: ${success}\n❌ Failed: ${failed}`
+        text: `📢 Message sent!\n\n✅ Success: ${success}\n❌ Failed: ${failed}`
       }, { quoted: m });
 
     } catch (err) {
       console.error("❌ allkaya error:", err);
-      kaya.sendMessage(m.chat, { text: "❌ An error occurred while sending messages to all groups." }, { quoted: m });
+      return kaya.sendMessage(m.chat, {
+        text: "❌ An error occurred while sending messages."
+      }, { quoted: m });
     }
   }
 };

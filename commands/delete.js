@@ -1,46 +1,43 @@
-import checkAdminOrOwner from "../system/checkAdmin.js";
+import checkAdminOrOwner from '../system/checkAdmin.js';
 
 export default {
-  name: "del",
-  alias: ["delete", "rm"],
-  description: "Delete a message in a group",
-  category: "Groupe",
+  name: 'del',
+  alias: ['delete', 'rm'],
+  description: 'Delete messages',
+  category: 'Groupe',
   group: true,
   admin: true,
-  ownerOnly: false,
-  usage: ".del <reply>",
 
-  run: async (kaya, m) => {
+  run: async (kaya, m, args) => {
     try {
       const chatId = m.chat;
 
-      if (!m.isGroup) {
-        return kaya.sendMessage(chatId, { text: "❌ This command works only in groups." }, { quoted: m });
-      }
+      if (!m.isGroup)
+        return kaya.sendMessage(chatId, { text: '❌ Groupe uniquement.' }, { quoted: m });
 
-      // 🔐 Check admin / owner
       const check = await checkAdminOrOwner(kaya, chatId, m.sender);
-      if (!check.isAdmin && !check.isOwner) {
-        return kaya.sendMessage(chatId, { text: "🚫 Admins or Owner only." }, { quoted: m });
+      if (!check.isAdmin && !check.isOwner)
+        return kaya.sendMessage(chatId, { text: '🚫 Admin seulement.' }, { quoted: m });
+
+      // ===== CAS REPLY =====
+      const ctx = m.message?.extendedTextMessage?.contextInfo;
+      if (ctx?.stanzaId) {
+        await kaya.sendMessage(chatId, {
+          delete: {
+            remoteJid: chatId,
+            fromMe: false,
+            id: ctx.stanzaId,
+            participant: ctx.participant
+          }
+        }).catch(console.error);
+        return;
       }
 
-      // 🗑️ Si message répondu
-      if (m.quoted) {
-        try {
-          await kaya.sendMessage(chatId, { delete: m.quoted.key });
-          return kaya.sendMessage(chatId, { text: "✅ Message deleted successfully." }, { quoted: m });
-        } catch (err) {
-          console.error("[DEL] Reply Error:", err);
-          return kaya.sendMessage(chatId, { text: "❌ Could not delete this message." }, { quoted: m });
-        }
-      }
-
-      // ⚠️ Si aucun reply
-      return kaya.sendMessage(chatId, { text: "⚠️ Reply to the message you want to delete." }, { quoted: m });
+      // ===== CAS SIMPLE =====
+      await kaya.sendMessage(chatId, { delete: m.key }).catch(() => {});
 
     } catch (err) {
-      console.error("[DEL] Error:", err);
-      return kaya.sendMessage(chatId, { text: "❌ An error occurred while deleting the message." }, { quoted: m });
+      console.error('[DEL ERROR]', err);
     }
   }
 };

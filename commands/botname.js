@@ -18,7 +18,7 @@ export default {
         return sock.sendMessage(
           m.chat,
           {
-            text: `❌ Please provide a bot name.\nExample:\n.setbotname 𓊈 KAYA-MD V2 𓊉`,
+            text: `❌ Please provide a bot name.\nExample:\n.botname 𓊈 KAYA-MD V2 𓊉`,
             contextInfo
           },
           { quoted: m }

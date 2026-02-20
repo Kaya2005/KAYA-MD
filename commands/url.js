@@ -3,68 +3,70 @@ import FormData from 'form-data';
 import { downloadContentFromMessage } from '@whiskeysockets/baileys';
 import { Readable } from 'stream';
 import { BOT_NAME } from '../system/botAssets.js';
+import { buildMediaLinkMessage } from '../system/mediaMessageTemplate.js';
 
 export default {
   name: 'url',
   alias: ['catbox', 'upload', 'link'],
-  description: '🔗 Generates a Catbox link from an image',
+  description: '🔗 Generates a Catbox link from media (image, video, audio, sticker)',
   category: 'Image',
-  usage: '<reply to an image>',
-  
+  usage: '<reply to media>',
+
   async execute(sock, m, args) {
     try {
-      // Check for quoted message
+      // Check quoted message or self
       const quoted = m.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-      const isQuotedImage = quoted?.imageMessage;
-      const isImage = m.message?.imageMessage;
+      const mediaTypes = ['imageMessage', 'videoMessage', 'audioMessage', 'stickerMessage'];
+      let mediaMessage, type;
 
-      if (!isQuotedImage && !isImage) {
-        return sock.sendMessage(m.chat, {    
-          text: `📸 *${BOT_NAME}* - Usage: Reply to an image to generate a Catbox link\n\nExamples:\n• .url (reply to an image)\n• .catbox (alias)`    
+      for (let t of mediaTypes) {
+        if (quoted?.[t]) {
+          mediaMessage = quoted[t];
+          type = t;
+          break;
+        } else if (m.message?.[t]) {
+          mediaMessage = m.message[t];
+          type = t;
+          break;
+        }
+      }
+
+      if (!mediaMessage) {
+        return sock.sendMessage(m.chat, {
+          text: `📸 *${BOT_NAME}* - Usage: Reply to an image, video, audio, or sticker to generate a Catbox link`
         }, { quoted: m });
       }
 
-      // Indicate the bot is processing
       await sock.sendPresenceUpdate('composing', m.chat);
 
-      // Convert stream to Buffer
-      const streamToBuffer = async (stream) => {
-        const chunks = [];
-        for await (const chunk of stream) chunks.push(chunk);
-        return Buffer.concat(chunks);
-      };
-
-      // Download the image
-      let buffer;
-      let imageMessage;
-      
-      if (isQuotedImage) {
-        imageMessage = quoted.imageMessage;
-        const stream = await downloadContentFromMessage(imageMessage, 'image');
-        buffer = await streamToBuffer(stream);
-      } else {
-        imageMessage = m.message.imageMessage;
-        const stream = await downloadContentFromMessage(imageMessage, 'image');
-        buffer = await streamToBuffer(stream);
-      }
+      // Download content
+      const stream = await downloadContentFromMessage(mediaMessage, type.replace('Message','').toLowerCase());
+      const chunks = [];
+      for await (const chunk of stream) chunks.push(chunk);
+      const buffer = Buffer.concat(chunks);
 
       if (!buffer || buffer.length < 100) {
         return sock.sendMessage(m.chat, {
-          text: `❌ *${BOT_NAME}* - Unable to read this image (file too small or corrupted)`
+          text: `❌ *${BOT_NAME}* - Unable to read this file (too small or corrupted)`
         }, { quoted: m });
       }
 
-      // Determine extension from mimetype
-      const mimeType = imageMessage?.mimetype || 'image/jpeg';
-      let extension = 'jpg';
-      if (mimeType.includes('png')) extension = 'png';
-      if (mimeType.includes('webp')) extension = 'webp';
-      if (mimeType.includes('gif')) extension = 'gif';
+      // Determine file extension
+      let ext = 'bin';
+      const mimetype = mediaMessage?.mimetype || '';
+      if (mimetype.includes('png')) ext = 'png';
+      else if (mimetype.includes('jpeg')) ext = 'jpg';
+      else if (mimetype.includes('webp')) ext = 'webp';
+      else if (mimetype.includes('gif')) ext = 'gif';
+      else if (mimetype.includes('mp4')) ext = 'mp4';
+      else if (mimetype.includes('webm')) ext = 'webm';
+      else if (mimetype.includes('ogg')) ext = 'ogg';
+      else if (mimetype.includes('mp3')) ext = 'mp3';
 
       // Prepare FormData
       const form = new FormData();
       form.append('reqtype', 'fileupload');
-      form.append('fileToUpload', Readable.from(buffer), `image.${extension}`);
+      form.append('fileToUpload', Readable.from(buffer), `file.${ext}`);
 
       // Upload to Catbox
       const response = await axios.post('https://catbox.moe/user/api.php', form, {
@@ -74,29 +76,20 @@ export default {
 
       const url = response.data.trim();
 
-      // Send result
-      const message = `
-╭────「 ${BOT_NAME} 」────⬣
-│ 📤 Link successfully generated!
-│ 🔗 Catbox Link:
-│ ${url}
-╰──────────────────⬣`.trim();
+      // Send styled link message
+      await sock.sendMessage(m.chat, { 
+        text: buildMediaLinkMessage(url)
+      }, { quoted: m });
 
-      await sock.sendMessage(m.chat, { text: message }, { quoted: m });
-
-    } catch (error) {
-      console.error('❌ URL command error:', error);
-
-      let errorMessage = `❌ *${BOT_NAME}* - Error generating the link.`;
-      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
-        errorMessage = `❌ *${BOT_NAME}* - Catbox is unreachable or too slow. Try again later.`;
-      } else if (error.response?.status === 413) {
-        errorMessage = `❌ *${BOT_NAME}* - Image is too large (>20MB).`;
-      } else if (error.message.includes('unsupported image')) {
-        errorMessage = `❌ *${BOT_NAME}* - Image format not supported by Catbox.`;
+    } catch (err) {
+      console.error('❌ URL command error:', err);
+      let msg = `❌ *${BOT_NAME}* - Error uploading media.`;
+      if (err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT') {
+        msg = `❌ *${BOT_NAME}* - Catbox unreachable. Try again later.`;
+      } else if (err.response?.status === 413) {
+        msg = `❌ *${BOT_NAME}* - File too large (>20MB).`;
       }
-
-      sock.sendMessage(m.chat, { text: errorMessage }, { quoted: m });
+      await sock.sendMessage(m.chat, { text: msg }, { quoted: m });
     }
   }
 };

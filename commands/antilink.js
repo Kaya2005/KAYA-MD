@@ -1,38 +1,38 @@
-// ==================== commands/antilink.js ====================
+import checkAdminOrOwner from "../system/checkAdmin.js";
 import fs from "fs";
 import path from "path";
-import checkAdminOrOwner from "../system/checkAdmin.js";
 
-// 📂 Save file
-const antiLinkFile = path.join(process.cwd(), "data/antiLinkGroups.json");
+// 📂 Fichiers de données
+const DATA_DIR = path.join(process.cwd(), "data");
+const ANTI_LINK_FILE = path.join(DATA_DIR, "antilink.json");
+const WARNS_FILE = path.join(DATA_DIR, "warns.json");
 
-// ----------------- Load & Save -----------------
-function loadAntiLinkGroups() {
+// Crée le dossier si inexistant
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+
+// 🔹 Load / Save helpers
+const loadJSON = (file) => {
   try {
-    if (fs.existsSync(antiLinkFile)) {
-      return JSON.parse(fs.readFileSync(antiLinkFile, "utf-8"));
-    }
-  } catch (err) {
-    console.error("❌ Error loading antiLinkGroups.json:", err);
+    if (!fs.existsSync(file)) fs.writeFileSync(file, JSON.stringify({}, null, 2));
+    return JSON.parse(fs.readFileSync(file, "utf-8"));
+  } catch {
+    return {};
   }
-  return {};
-}
+};
 
-function saveAntiLinkGroups() {
-  try {
-    fs.writeFileSync(
-      antiLinkFile,
-      JSON.stringify(global.antiLinkGroups, null, 2)
-    );
-  } catch (err) {
-    console.error("❌ Error saving antiLinkGroups.json:", err);
-  }
-}
+const saveJSON = (file, data) => {
+  fs.writeFileSync(file, JSON.stringify(data, null, 2));
+};
 
-// ----------------- Global Initialization -----------------
-if (!global.antiLinkGroups) global.antiLinkGroups = loadAntiLinkGroups();
-if (!global.userWarns) global.userWarns = {};
+// ----------------- Global Init -----------------
+global.antiLinkGroups ??= loadJSON(ANTI_LINK_FILE);
+global.userWarns ??= loadJSON(WARNS_FILE);
 
+// ----------------- Save Wrappers -----------------
+const saveAntiLink = () => saveJSON(ANTI_LINK_FILE, global.antiLinkGroups);
+const saveUserWarns = () => saveJSON(WARNS_FILE, global.userWarns);
+
+// ==================== EXPORT ====================
 export default {
   name: "antilink",
   description: "Anti-link with delete, warn or kick options",
@@ -41,25 +41,14 @@ export default {
   admin: true,
   botAdmin: true,
 
-  // ==================== COMMAND ====================
   run: async (kaya, m, args) => {
     try {
       const chatId = m.chat;
-
-      if (!m.isGroup) {
-        return kaya.sendMessage(
-          chatId,
-          { text: "❌ This command only works in groups." },
-          { quoted: m }
-        );
-      }
+      if (!m.isGroup) return kaya.sendMessage(chatId, { text: "❌ This command only works in groups." }, { quoted: m });
 
       const action = args[0]?.toLowerCase();
-      if (!action || !["on", "off", "delete", "warn", "kick", "status"].includes(action)) {
-        return kaya.sendMessage(
-          chatId,
-          {
-            text:
+      if (!["on", "off", "delete", "warn", "kick", "status"].includes(action)) {
+        return kaya.sendMessage(chatId, { text:
 `🔗 *ANTI-LINK COMMAND*
 
 .antilink on      → Enable (WARN mode)
@@ -68,147 +57,93 @@ export default {
 .antilink warn    → 4 warnings = kick
 .antilink kick    → Direct kick
 .antilink status  → Show current status`
-          },
-          { quoted: m }
-        );
+        }, { quoted: m });
       }
 
-      // 📊 STATUS (allowed to everyone)
+      // STATUS
       if (action === "status") {
         const data = global.antiLinkGroups[chatId];
-        if (!data || !data.enabled) {
-          return kaya.sendMessage(
-            chatId,
-            { text: "❌ Anti-link is disabled in this group." },
-            { quoted: m }
-          );
-        }
-
-        return kaya.sendMessage(
-          chatId,
-          { text: `✅ Anti-link ENABLED\n📊 Mode: ${data.mode.toUpperCase()}` },
-          { quoted: m }
-        );
+        return kaya.sendMessage(chatId, { text: data?.enabled
+          ? `✅ Anti-link ENABLED\n📊 Mode: ${data.mode.toUpperCase()}`
+          : "❌ Anti-link is disabled."}, { quoted: m });
       }
 
-      // 🔐 Admin/Owner check
+      // Admin check
       const check = await checkAdminOrOwner(kaya, chatId, m.sender);
-      if (!check.isAdminOrOwner) {
-        return kaya.sendMessage(
-          chatId,
-          { text: "🚫 Admins or Owner only." },
-          { quoted: m }
-        );
-      }
+      if (!check.isAdminOrOwner) return kaya.sendMessage(chatId, { text: "🚫 Admins only." }, { quoted: m });
 
-      // ---------- BOT ADMIN CHECK ----------
-      const groupMetadata = await kaya.groupMetadata(chatId).catch(() => null);
-      const botIsAdmin = groupMetadata?.participants.some(
-        p => p.jid === kaya.user.jid && p.admin
-      );
-
-      if (!botIsAdmin && action !== "off") {
-        return kaya.sendMessage(
-          chatId,
-          { text: "❌ Cannot enable/set anti-link: I need to be admin first." },
-          { quoted: m }
-        );
-      }
+      // Bot admin check
+      const meta = await kaya.groupMetadata(chatId).catch(() => null);
+      const botIsAdmin = meta?.participants.some(p => p.jid === kaya.user.jid && p.admin);
+      if (!botIsAdmin && action !== "off") return kaya.sendMessage(chatId, { text: "❌ I must be admin first." }, { quoted: m });
 
       // ---------- ACTIONS ----------
-      if (action === "on") {
-        global.antiLinkGroups[chatId] = { enabled: true, mode: "warn" };
-        saveAntiLinkGroups();
-        return kaya.sendMessage(
-          chatId,
-          { text: "✅ Anti-link enabled\n⚠️ WARN mode (4 warnings = kick)" },
-          { quoted: m }
-        );
-      }
-
-      if (action === "off") {
+      if (action === "on") global.antiLinkGroups[chatId] = { enabled: true, mode: "warn" };
+      else if (action === "off") {
         delete global.antiLinkGroups[chatId];
         delete global.userWarns[chatId];
-        saveAntiLinkGroups();
-        return kaya.sendMessage(
-          chatId,
-          { text: "❌ Anti-link disabled and warnings reset." },
-          { quoted: m }
-        );
+      } else if (["delete","warn","kick"].includes(action)) {
+        global.antiLinkGroups[chatId] = { enabled: true, mode: action };
       }
 
-      if (["delete", "warn", "kick"].includes(action)) {
-        global.antiLinkGroups[chatId] = { enabled: true, mode: action };
-        saveAntiLinkGroups();
-        return kaya.sendMessage(
-          chatId,
-          { text: `✅ Anti-link mode set to: ${action.toUpperCase()}` },
-          { quoted: m }
-        );
-      }
+      // Save all changes
+      saveAntiLink();
+      saveUserWarns();
+
+      return kaya.sendMessage(chatId, { text:
+        action === "off" ? "❌ Anti-link disabled & warns reset."
+        : `✅ Anti-link ${action === "on" ? "enabled (WARN mode)" : "mode set to " + action.toUpperCase()}`
+      }, { quoted: m });
 
     } catch (err) {
       console.error("❌ antilink.js error:", err);
-      return kaya.sendMessage(
-        m.chat,
-        { text: "❌ An error occurred while running the anti-link command." },
-        { quoted: m }
-      );
     }
   },
 
-  // ==================== ANTI-LINK DETECTION ====================
-detect: async (kaya, m) => {
-  try {
-    if (!m.isGroup || m.key?.fromMe) return;
+  detect: async (kaya, m) => {
+    try {
+      if (!m.isGroup || m.key?.fromMe) return;
 
-    const chatId = m.chat;
-    if (!global.antiLinkGroups?.[chatId]?.enabled) return;
+      const chatId = m.chat;
+      const data = global.antiLinkGroups[chatId];
+      if (!data?.enabled) return;
 
-    const sender = m.sender;
-    const mode = global.antiLinkGroups[chatId].mode;
+      const sender = m.sender;
+      const mode = data.mode;
 
-    // ✅ Skip admin/owner
-    const check = await checkAdminOrOwner(kaya, chatId, sender);
-    if (check.isAdminOrOwner) return;
+      const check = await checkAdminOrOwner(kaya, chatId, sender);
+      if (check.isAdminOrOwner) return;
 
-    const linkRegex = /(https?:\/\/|www\.|chat\.whatsapp\.com|wa\.me)/i;
-    if (!linkRegex.test(m.body)) return;
+      const linkRegex = /(https?:\/\/|www\.|chat\.whatsapp\.com|wa\.me)/i;
+      if (!linkRegex.test(m.body)) return;
 
-    // 🗑️ Delete message (TOUS LES MODES)
-    await kaya.sendMessage(chatId, { delete: m.key }).catch(() => {});
+      // Delete message
+      try { await kaya.sendMessage(chatId, { delete: m.key }); } catch {}
 
-    // 🚫 MODE KICK (sans message)
-    if (mode === "kick") {
-      return kaya.groupParticipantsUpdate(chatId, [sender], "remove");
-    }
+      // Kick direct
+      if (mode === "kick") return kaya.groupParticipantsUpdate(chatId, [sender], "remove");
 
-    // ⚠️ MODE WARN (message seulement ici)
-    if (mode === "warn") {
-      if (!global.userWarns[chatId]) global.userWarns[chatId] = {};
-      global.userWarns[chatId][sender] = (global.userWarns[chatId][sender] || 0) + 1;
+      // Warn
+      if (mode === "warn") {
+        global.userWarns[chatId] ??= {};
+        global.userWarns[chatId][sender] = (global.userWarns[chatId][sender] || 0) + 1;
+        saveUserWarns();
 
-      const warns = global.userWarns[chatId][sender];
+        const warns = global.userWarns[chatId][sender];
+        await kaya.sendMessage(chatId, {
+          text: `⚠️ ANTI-LINK\n👤 @${sender.split("@")[0]}\n📊 Warning: ${warns}/4`,
+          mentions: [sender]
+        });
 
-      await kaya.sendMessage(chatId, {
-        text:
-`⚠️ ANTI-LINK
-👤 @${sender.split("@")[0]}
-📊 Warning: ${warns}/4`,
-        mentions: [sender]
-      });
-
-      if (warns >= 4) {
-        delete global.userWarns[chatId][sender];
-        await kaya.groupParticipantsUpdate(chatId, [sender], "remove");
+        if (warns >= 4) {
+          delete global.userWarns[chatId][sender];
+          saveUserWarns();
+          await kaya.groupParticipantsUpdate(chatId, [sender], "remove");
+        }
       }
+
+    } catch (err) {
+      console.error("❌ AntiLink detect error:", err);
     }
-
-    // 🚫 MODE DELETE (pas de message)
-    // Rien de plus à faire, le message est déjà supprimé
-
-} catch (e) {
-    console.error("❌ AntiLink detect error:", e);
   }
-}
 };

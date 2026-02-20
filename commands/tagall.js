@@ -1,4 +1,4 @@
-import { getBotImage } from '../system/botAssets.js';
+import { sendWithBotImage } from '../system/botAssets.js';
 import { buildTagAllMessage } from '../system/tagallTemplate.js';
 
 export default {
@@ -37,12 +37,13 @@ export default {
         mentionText
       });
 
-      await kaya.sendMessage(
+      await sendWithBotImage(
+        kaya,
         m.chat,
         {
-          image: { url: getBotImage() },
           caption: fullMessage,
-          mentions: participants
+          mentions: participants,
+          contextInfo: { mentionedJid: participants }
         },
         { quoted: m }
       );

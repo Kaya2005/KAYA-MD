@@ -1,38 +1,37 @@
-// ==================== commands/antitag.js ====================
 import fs from "fs";
 import path from "path";
 import checkAdminOrOwner from "../system/checkAdmin.js";
 
-// 📂 Fichier de sauvegarde
-const antitagFile = path.join(process.cwd(), "data/antiTagGroups.json");
+// 📂 Storage file
+const dataDir = path.join(process.cwd(), "data");
+const filePath = path.join(dataDir, "antiTagGroups.json");
 
-// ----------------- Load & Save -----------------
-function loadAntitagGroups() {
+// Create folder if needed
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+
+// ----------------- Load / Save -----------------
+function loadData() {
   try {
-    if (fs.existsSync(antitagFile)) {
-      return JSON.parse(fs.readFileSync(antitagFile, "utf-8"));
-    }
+    if (!fs.existsSync(filePath)) fs.writeFileSync(filePath, JSON.stringify({}, null, 2));
+    return JSON.parse(fs.readFileSync(filePath, "utf-8"));
   } catch (err) {
     console.error("❌ Error loading antiTagGroups.json:", err);
+    return {};
   }
-  return {};
 }
 
-function saveAntitagGroups() {
+function saveData(data) {
   try {
-    fs.writeFileSync(
-      antitagFile,
-      JSON.stringify(global.antiTagGroups, null, 2)
-    );
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
   } catch (err) {
     console.error("❌ Error saving antiTagGroups.json:", err);
   }
 }
 
-// ----------------- Global init -----------------
-global.antiTagGroups ??= loadAntitagGroups();
+// ----------------- Global Init -----------------
+global.antiTagGroups ??= loadData();
 
-// ==================== EXPORT COMMANDE ====================
+// ==================== EXPORT ====================
 export default {
   name: "antitag",
   alias: ["anti-tag"],
@@ -42,113 +41,68 @@ export default {
   admin: true,
   botAdmin: true,
 
-  // ==================== COMMAND ====================
   run: async (kaya, m, args) => {
     try {
       const chatId = m.chat;
       const action = args[0]?.toLowerCase();
 
-      if (!m.isGroup) {
-        return kaya.sendMessage(
-          chatId,
-          { text: "❌ Cette commande fonctionne uniquement dans les groupes." },
-          { quoted: m }
-        );
-      }
+      if (!m.isGroup) return kaya.sendMessage(chatId, { text: "❌ This command only works in groups." }, { quoted: m });
 
-      // 🔐 Check admin / owner
       const check = await checkAdminOrOwner(kaya, chatId, m.sender);
-      if (!check.isAdminOrOwner) {
-        return kaya.sendMessage(
-          chatId,
-          { text: "🚫 Seuls les admins ou le propriétaire peuvent utiliser cette commande." },
-          { quoted: m }
-        );
-      }
+      if (!check.isAdminOrOwner) return kaya.sendMessage(chatId, { text: "🚫 Only admins or the owner can use this command." }, { quoted: m });
 
-      // 📖 Help
+      // ❌ Show help if no argument
       if (!action) {
-        return kaya.sendMessage(
-          chatId,
-          {
-            text: `🚫 *ANTITAG*
+        return kaya.sendMessage(chatId, {
+          text:
+`🚫 *ANTITAG*
 
-.antitag on
-→ Activer l'antitag (DELETE)
-
-.antitag off
-→ Désactiver l'antitag
-
-.antitag set delete
-→ Supprimer le message
-
-.antitag set kick
-→ Kick l'utilisateur
-
-.antitag get
-→ Voir le statut`
-          },
-          { quoted: m }
-        );
+.antitag on      → Enable anti-tag (DELETE)
+.antitag off     → Disable anti-tag
+.antitag set delete | kick
+.antitag get     → Show status`
+        }, { quoted: m });
       }
 
       // 📊 STATUS
       if (action === "get") {
         const data = global.antiTagGroups[chatId];
-        return kaya.sendMessage(
-          chatId,
-          {
-            text: `📊 *ANTITAG STATUS*
-• État   : ${data?.enabled ? "ON ✅" : "OFF ❌"}
-• Action : ${data?.action || "—"}`
-          },
-          { quoted: m }
-        );
+        return kaya.sendMessage(chatId, {
+          text:
+`📊 *ANTITAG STATUS*
+• State   : ${data?.enabled ? "ON ✅" : "OFF ❌"}
+• Action  : ${data?.action || "—"}`
+        }, { quoted: m });
       }
 
       // ⚙️ ACTIONS
       if (action === "on") {
         global.antiTagGroups[chatId] = { enabled: true, action: "delete" };
-        saveAntitagGroups();
-        return kaya.sendMessage(chatId, { text: "✅ Antitag activé (DELETE)." }, { quoted: m });
+        saveData(global.antiTagGroups);
+        return kaya.sendMessage(chatId, { text: "✅ Anti-tag enabled (DELETE)." }, { quoted: m });
       }
 
       if (action === "off") {
         delete global.antiTagGroups[chatId];
-        saveAntitagGroups();
-        return kaya.sendMessage(chatId, { text: "❌ Antitag désactivé." }, { quoted: m });
+        saveData(global.antiTagGroups);
+        return kaya.sendMessage(chatId, { text: "❌ Anti-tag disabled." }, { quoted: m });
       }
 
       if (action === "set") {
         const mode = args[1];
-        if (!["delete", "kick"].includes(mode)) {
-          return kaya.sendMessage(
-            chatId,
-            { text: "⚠️ Utilisation : .antitag set delete | kick" },
-            { quoted: m }
-          );
-        }
+        if (!["delete", "kick"].includes(mode)) return kaya.sendMessage(chatId, { text: "⚠️ Usage: .antitag set delete | kick" }, { quoted: m });
 
         global.antiTagGroups[chatId] = { enabled: true, action: mode };
-        saveAntitagGroups();
-        return kaya.sendMessage(
-          chatId,
-          { text: `⚙️ Action antitag définie sur : ${mode.toUpperCase()}` },
-          { quoted: m }
-        );
+        saveData(global.antiTagGroups);
+        return kaya.sendMessage(chatId, { text: `⚙️ Anti-tag action set to: ${mode.toUpperCase()}` }, { quoted: m });
       }
 
     } catch (err) {
       console.error("❌ ANTITAG COMMAND ERROR:", err);
-      await kaya.sendMessage(
-        m.chat,
-        { text: "❌ Erreur lors de l'exécution de la commande antitag." },
-        { quoted: m }
-      );
+      await kaya.sendMessage(m.chat, { text: "❌ Error executing the antitag command." }, { quoted: m });
     }
   },
 
-  // ==================== DETECT ====================
   detect: async (kaya, m) => {
     try {
       if (!m.isGroup || m.key?.fromMe) return;
@@ -156,19 +110,19 @@ export default {
       const data = global.antiTagGroups?.[m.chat];
       if (!data?.enabled) return;
 
-      // Skip admin / owner
       const check = await checkAdminOrOwner(kaya, m.chat, m.sender);
       if (check.isAdminOrOwner) return;
 
-      // Detect mention / tagall
+      const text = m.body || m.caption || "";
       const mentions = m.mentionedJid || [];
-      const hasMention = mentions.length > 0 || /@all/i.test(m.body);
+      const hasMention = mentions.length > 0 || /@all/i.test(text);
+
       if (!hasMention) return;
 
-      // 🗑️ Delete message
+      // 🗑️ Delete the message
       await kaya.sendMessage(m.chat, { delete: m.key }).catch(() => {});
 
-      // 🚫 Kick si activé
+      // 🚫 Kick if enabled
       if (data.action === "kick") {
         await kaya.groupParticipantsUpdate(m.chat, [m.sender], "remove").catch(() => {});
       }

@@ -1,5 +1,5 @@
 import config from '../config.js';
-import { BOT_NAME, getBotImage } from '../system/botAssets.js';
+import { BOT_NAME, sendWithBotImage } from '../system/botAssets.js';
 
 function formatUptime(seconds) {
   const h = Math.floor(seconds / 3600);
@@ -27,19 +27,24 @@ export default {
       const mode = config.public ? 'PUBLIC' : 'PRIVATE';
 
       const message = `
-▉─『 🏓 ${BOT_NAME} 』─▉
-┃ ✅ Status   : Online & Ready
-┃ ⏱️ Latency  : ${latency} ms
-┃ ⌛ Uptime   : ${uptime}
-┃ 🔓 Mode     : ${mode}
-▉─────────────────▉
+╔═━────────────━═╗
+       ${BOT_NAME}
+╚═━────────────━═╝
+
+⚡ Status   : Online & Ready
+⏱️ Latency  : ${latency} ms
+⌛ Uptime   : ${uptime}
+🔓 Mode     : ${mode}
+
+══════════════════
       `.trim();
 
-      await kaya.sendMessage(
+      await sendWithBotImage(
+        kaya,
         m.chat,
         {
-          image: { url: getBotImage() },
-          caption: message
+          caption: message,
+          contextInfo: { mentionedJid: [m.sender] }
         },
         { quoted: m }
       );

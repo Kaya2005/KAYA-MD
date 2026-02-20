@@ -1,45 +1,47 @@
-// ==================== commands/gif.js ====================
 import axios from 'axios';
-
-const GIPHY_API_KEY = 'qnl7ssQChTdPjsKta2Ax2LMaGXz303tq';
 
 export default {
   name: 'gif',
-  description: '🎬 Search for a GIF via Giphy',
-  category: 'Image',
-  usage: '.gif <term>',
-  ownerOnly: false,
+  alias: ['giphy'],
+  description: 'Search and send a GIF from Giphy',
+  category: 'Fun',
+  usage: '.gif <mot>',
 
-  run: async (sock, m, args) => {
+  run: async (kaya, m, args) => {
     const chatId = m.chat;
-    const query = args.join(' ');
+    const query = args.join(' ').trim();
+    const apiKey = 'qnl7ssQChTdPjsKta2Ax2LMaGXz303tq';
 
-    if (!query) {
-      return sock.sendMessage(chatId, { text: '⚠️ Please provide a term to search for a GIF.' }, { quoted: m });
-    }
+    if (!query)
+      return kaya.sendMessage(chatId, { text: '❌ Donne un mot-clé.' }, { quoted: m });
 
     try {
-      const response = await axios.get('https://api.giphy.com/v1/gifs/search', {
+      const { data } = await axios.get('https://api.giphy.com/v1/gifs/search', {
         params: {
-          api_key: GIPHY_API_KEY,
+          api_key: apiKey,
           q: query,
           limit: 1,
           rating: 'g'
         }
       });
 
-      const gifUrl = response.data.data[0]?.images?.downsized_medium?.mp4 || response.data.data[0]?.images?.downsized_medium?.url;
+      const gif = data.data[0];
 
-      if (!gifUrl) {
-        return sock.sendMessage(chatId, { text: '❌ No GIF found for this term.' }, { quoted: m });
+      if (!gif) {
+        return kaya.sendMessage(chatId, { text: '⚠️ Aucun GIF trouvé.' }, { quoted: m });
       }
 
-      // Send the GIF as a video
-      await sock.sendMessage(chatId, { video: { url: gifUrl }, caption: `Here is your GIF for "${query}"` }, { quoted: m });
+      const mp4Url = gif.images.original_mp4.mp4;
+
+      await kaya.sendMessage(chatId, {
+        video: { url: mp4Url },
+        gifPlayback: true,
+        caption: `🎬 GIF: ${query}`
+      }, { quoted: m });
 
     } catch (err) {
-      console.error('❌ GIF Error:', err);
-      await sock.sendMessage(chatId, { text: '❌ Unable to fetch the GIF. Please try again later.' }, { quoted: m });
+      console.error('[GIF ERROR]', err);
+      return kaya.sendMessage(chatId, { text: '❌ Erreur GIF.' }, { quoted: m });
     }
   }
 };

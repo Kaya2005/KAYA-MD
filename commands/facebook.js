@@ -1,124 +1,122 @@
+// ================== commands/fb.js ==================
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { contextInfo } from '../system/contextInfo.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 export default {
-  name: 'facebook',
-  alias: ['fb'],
-  description: 'Télécharge une vidéo Facebook',
-  category: 'Download',
+    name: 'facebook',
+    alias: ['fb'],
+    description: 'Download Facebook videos',
+    category: 'Download',
+    ownerOnly: false,
+    usage: '.fb <Facebook video URL>',
 
-  async run(kaya, m, msg, store, args) {
-    try {
-      const url = args.join(' ').trim();
+    run: async (kaya, m, args) => {
+        try {
+            const chatId = m.chat;
+            const text = m.message?.conversation || m.message?.extendedTextMessage?.text || '';
+            const url = args.join(' ').trim();
 
-      if (!url) {
-        return kaya.sendMessage(
-          m.chat,
-          {
-            text: '❌ Fournis un lien Facebook.\nExemple : .fb https://www.facebook.com/...',
-            contextInfo
-          },
-          { quoted: m }
-        );
-      }
+            if (!url) {
+                return kaya.sendMessage(chatId, {
+                    text: "❌ Please provide a Facebook video URL.\nExample: .fb https://www.facebook.com/..."
+                }, { quoted: m });
+            }
 
-      if (!url.includes('facebook.com') && !url.includes('fb.watch')) {
-        return kaya.sendMessage(
-          m.chat,
-          { text: '❌ Lien Facebook invalide.', contextInfo },
-          { quoted: m }
-        );
-      }
+            // Send loading reaction
+            await kaya.sendMessage(chatId, {
+                react: { text: '🔄', key: m.key }
+            });
 
-      // 🔄 Réaction chargement
-      await kaya.sendMessage(m.chat, {
-        react: { text: '⏳', key: m.key }
-      });
+            // Resolve URL if needed
+            let resolvedUrl = url;
+            try {
+                const res = await axios.get(url, { timeout: 15000, maxRedirects: 5, headers: { 'User-Agent': 'Mozilla/5.0' } });
+                resolvedUrl = res?.request?.res?.responseUrl || url;
+            } catch {}
 
-      // 🌐 Résolution URL (short / watch)
-      let finalUrl = url;
-      try {
-        const r = await axios.get(url, {
-          maxRedirects: 10,
-          timeout: 20000,
-          headers: { 'User-Agent': 'Mozilla/5.0' }
-        });
-        finalUrl = r?.request?.res?.responseUrl || url;
-      } catch {}
+            // Fetch video from Hanggts API
+            async function fetchFbVideo(videoUrl) {
+                const apiUrl = `https://api.hanggts.xyz/download/facebook?url=${encodeURIComponent(videoUrl)}`;
+                const res = await axios.get(apiUrl, { timeout: 20000 });
+                if (!res.data) throw new Error('No data from API');
+                return res.data;
+            }
 
-      // 📡 Appel API
-      const api = `https://api.princetechn.com/api/download/facebook?apikey=prince&url=${encodeURIComponent(finalUrl)}`;
-      const res = await axios.get(api, { timeout: 40000 });
+            let apiData;
+            try {
+                apiData = await fetchFbVideo(resolvedUrl);
+            } catch {
+                apiData = await fetchFbVideo(url);
+            }
 
-      const data = res.data;
+            // Extract video URL and title from API response
+            let videoUrl = null;
+            let title = "Facebook Video";
 
-      if (!data?.success || !data?.result) {
-        return kaya.sendMessage(
-          m.chat,
-          { text: '❌ Impossible de récupérer la vidéo.', contextInfo },
-          { quoted: m }
-        );
-      }
+            if (apiData.result?.media) {
+                videoUrl = apiData.result.media.video_hd || apiData.result.media.video_sd;
+                title = apiData.result.info?.title || apiData.result.title || title;
+            } else if (apiData.result?.url) {
+                videoUrl = apiData.result.url;
+                title = apiData.result.title || title;
+            } else if (apiData.download) {
+                videoUrl = apiData.download;
+                title = apiData.title || title;
+            }
 
-      const videoUrl = data.result.hd_video || data.result.sd_video;
-      if (!videoUrl) {
-        return kaya.sendMessage(
-          m.chat,
-          { text: '❌ Vidéo Facebook non trouvée.', contextInfo },
-          { quoted: m }
-        );
-      }
+            if (!videoUrl) {
+                return kaya.sendMessage(chatId, {
+                    text: '❌ Failed to retrieve the Facebook video.\n• Video may be private or deleted\n• URL may be invalid'
+                }, { quoted: m });
+            }
 
-      // 📁 Dossier temporaire
-      const tmpDir = path.join(__dirname, '../temp');
-      if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+            // Try sending directly by URL first
+            try {
+                await kaya.sendMessage(chatId, {
+                    video: { url: videoUrl },
+                    mimetype: "video/mp4",
+                    caption: `✅ Downloaded by KAYA-MD\n📝 Title: ${title}`
+                }, { quoted: m });
+                return;
+            } catch {}
 
-      const filePath = path.join(tmpDir, `facebook_${Date.now()}.mp4`);
+            // Fallback: download video to temp file then send
+            try {
+                const tmpDir = path.join(process.cwd(), 'tmp');
+                if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
-      // ⬇️ Téléchargement vidéo
-      const videoRes = await axios.get(videoUrl, {
-        responseType: 'stream',
-        headers: {
-          'User-Agent': 'Mozilla/5.0',
-          'Referer': 'https://www.facebook.com/'
+                const tempFile = path.join(tmpDir, `fb_${Date.now()}.mp4`);
+                const response = await axios.get(videoUrl, { responseType: 'stream', timeout: 60000 });
+                const writer = fs.createWriteStream(tempFile);
+                response.data.pipe(writer);
+                await new Promise((resolve, reject) => {
+                    writer.on('finish', resolve);
+                    writer.on('error', reject);
+                });
+
+                if (!fs.existsSync(tempFile) || fs.statSync(tempFile).size === 0) throw new Error('Failed to download video');
+
+                await kaya.sendMessage(chatId, {
+                    video: { url: tempFile },
+                    mimetype: "video/mp4",
+                    caption: `✅ Downloaded by KAYA MD\n📝 Title: ${title}`
+                }, { quoted: m });
+
+                fs.unlinkSync(tempFile);
+                return;
+            } catch (err) {
+                console.error('Fallback download error:', err);
+                return kaya.sendMessage(chatId, {
+                    text: '❌ Failed to send the video. Please try again later.'
+                }, { quoted: m });
+            }
+
+        } catch (error) {
+            console.error('[FB COMMAND ERROR]', error);
+            await kaya.sendMessage(m.chat, {
+                text: `❌ An error occurred while downloading the video.\n${error.message}`
+            }, { quoted: m });
         }
-      });
-
-      const writer = fs.createWriteStream(filePath);
-      videoRes.data.pipe(writer);
-
-      await new Promise((resolve, reject) => {
-        writer.on('finish', resolve);
-        writer.on('error', reject);
-      });
-
-      // 📤 Envoi vidéo
-      await kaya.sendMessage(
-        m.chat,
-        {
-          video: { url: filePath },
-          mimetype: 'video/mp4',
-          caption: '📥 Vidéo Facebook téléchargée\n\nBy: KAYA-MD',
-          contextInfo
-        },
-        { quoted: m }
-      );
-
-      fs.unlinkSync(filePath);
-
-    } catch (err) {
-      console.error('❌ Facebook Error:', err);
-      await kaya.sendMessage(
-        m.chat,
-        { text: `❌ Erreur : ${err.message}`, contextInfo },
-        { quoted: m }
-      );
     }
-  }
 };

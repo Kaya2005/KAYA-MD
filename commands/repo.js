@@ -1,5 +1,6 @@
 // ================= commands/repo.js =================
-import { getBotImage } from '../system/botAssets.js';
+
+import { sendWithBotImage } from '../system/botAssets.js';
 import { buildRepoMessage } from '../system/repoTemplate.js';
 
 export default {
@@ -8,12 +9,13 @@ export default {
   description: 'Shows the bot GitHub repository',
   category: 'General',
 
-  execute: async (kaya, m) => {
-    await kaya.sendMessage(
+  async execute(kaya, m) {
+    await sendWithBotImage(
+      kaya,
       m.chat,
       {
-        image: { url: getBotImage() },
-        caption: buildRepoMessage()
+        caption: buildRepoMessage(),
+        contextInfo: { mentionedJid: [m.sender] }
       },
       { quoted: m }
     );
