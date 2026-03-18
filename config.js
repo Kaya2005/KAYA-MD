@@ -10,8 +10,8 @@ const __dirname = path.dirname(__filename);
 // ================== CONFIGURATION PAR DÉFAUT ==================
 const defaultConfig = {
   // 🔑 Identifiants
-  SESSION_ID: "kaya~jR9AWTSZ#-2uMMpzJkXUwFeo9MdBZwtd_gKc2djIMQtTIDzTRSoI",
-  OWNERS: ["243910014043"], // ← tableau des owners, uniquement les numéros
+  SESSION_ID: "SESSION_ID",
+  OWNERS: ["OWNER_NUMBER"], 
   PREFIX: ".",
   TIMEZONE: "Africa/Kinshasa",
   VERSION: "2.0.0",
