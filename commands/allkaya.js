@@ -13,9 +13,9 @@ export default {
 
       let [text, imageUrl] = input.split("|").map(s => s.trim());
 
-      // ✅ Récupération correcte des groupes (Baileys v7)
+      // ✅ Récupération des groupes
       const groupsData = await kaya.groupFetchAllParticipating();
-      const groups = Object.values(groupsData);
+      const groups = Object.values(groupsData).filter(g => g.id && g.participants?.length);
 
       if (!groups.length)
         return kaya.sendMessage(m.chat, { text: "❌ No groups found." }, { quoted: m });
@@ -27,6 +27,7 @@ export default {
         try {
           const jid = group.id;
 
+          // Prépare le message
           const message = imageUrl
             ? { image: { url: imageUrl }, caption: text }
             : { text };
@@ -34,7 +35,8 @@ export default {
           await kaya.sendMessage(jid, message);
           success++;
 
-          await new Promise(r => setTimeout(r, 1200)); // anti-ban delay
+          // 🔹 Pause anti-ban
+          await new Promise(r => setTimeout(r, 1200));
 
         } catch (err) {
           failed++;
@@ -43,7 +45,7 @@ export default {
       }
 
       return kaya.sendMessage(m.chat, {
-        text: `📢 Message sent!\n\n✅ Success: ${success}\n❌ Failed: ${failed}`
+        text: `📢 Broadcast completed!\n\n✅ Success: ${success}\n❌ Failed: ${failed}`
       }, { quoted: m });
 
     } catch (err) {

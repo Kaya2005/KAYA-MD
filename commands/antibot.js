@@ -3,37 +3,28 @@ import checkAdminOrOwner from "../system/checkAdmin.js";
 import fs from "fs";
 import path from "path";
 
-// 📂 Fichiers de données
 const DATA_DIR = path.join(process.cwd(), "data");
 const ANTIBOT_FILE = path.join(DATA_DIR, "antibot.json");
 const BOTWARNS_FILE = path.join(DATA_DIR, "botWarns.json");
 
-// Crée le dossier si nécessaire
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
-// 🔹 Load / Save helpers
 const loadJSON = (file) => {
   try {
     if (!fs.existsSync(file)) fs.writeFileSync(file, JSON.stringify({}, null, 2));
     return JSON.parse(fs.readFileSync(file, "utf-8"));
-  } catch {
-    return {};
-  }
+  } catch { return {}; }
 };
 
-const saveJSON = (file, data) => {
-  fs.writeFileSync(file, JSON.stringify(data, null, 2));
-};
+const saveJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2));
 
-// ----------------- Global Init -----------------
 global.antiBotGroups ??= loadJSON(ANTIBOT_FILE);
 global.botWarns ??= loadJSON(BOTWARNS_FILE);
 
-// ----------------- Save Wrappers -----------------
 const saveAntiBotGroups = () => saveJSON(ANTIBOT_FILE, global.antiBotGroups);
 const saveBotWarns = () => saveJSON(BOTWARNS_FILE, global.botWarns);
 
-// ----------------- Patterns noms bots -----------------
+// 🔹 Patterns noms bots (tu peux compléter si besoin)
 const botPatterns = [
   /^3EB0/, /^4EB0/, /^5EB0/, /^6EB0/, /^7EB0/, /^8EB0/,
   /^9EB0/, /^AEB0/, /^BEB0/, /^CEB0/, /^DEB0/, /^EEB0/,
@@ -41,7 +32,6 @@ const botPatterns = [
   /^FAEB0/
 ];
 
-// ================= COMMAND =================
 export default {
   name: "antibot",
   description: "Anti-bot protection (delete, warn, kick)",
@@ -67,7 +57,10 @@ export default {
 .antibot status  → Show status`}, { quoted: m });
       }
 
-      // STATUS
+      // Vérification admin
+      const check = await checkAdminOrOwner(kaya, chatId, m.sender);
+      if (!check.isAdminOrOwner) return kaya.sendMessage(chatId, { text: "🚫 Admins only." }, { quoted: m });
+
       if (action === "status") {
         const data = global.antiBotGroups[chatId];
         return kaya.sendMessage(chatId, { text: data?.enabled
@@ -75,18 +68,11 @@ export default {
           : "❌ Anti-bot is disabled."}, { quoted: m });
       }
 
-      // Admin check
-      const check = await checkAdminOrOwner(kaya, chatId, m.sender);
-      if (!check.isAdminOrOwner)
-        return kaya.sendMessage(chatId, { text: "🚫 Admins only." }, { quoted: m });
-
-      // ACTIONS
       if (action === "on") global.antiBotGroups[chatId] = { enabled: true, mode: "warn" };
+      else if (["delete","warn","kick"].includes(action)) global.antiBotGroups[chatId] = { enabled: true, mode: action };
       else if (action === "off") {
         delete global.antiBotGroups[chatId];
         delete global.botWarns[chatId];
-      } else {
-        global.antiBotGroups[chatId] = { enabled: true, mode: action };
       }
 
       saveAntiBotGroups();
@@ -111,51 +97,47 @@ export default {
       const chatId = m.chat;
       const sender = m.sender;
       const data = global.antiBotGroups[chatId];
-      if (!data?.enabled) return;
+      if (!data?.enabled) return; // only enabled groups
 
-      // Ignore admins
+      // Vérifie que l'utilisateur n'est pas admin/owner
       const check = await checkAdminOrOwner(kaya, chatId, sender);
       if (check.isAdminOrOwner) return;
 
-      const metadata = await kaya.groupMetadata(chatId);
-      const botId = kaya.user.id.includes('@s.whatsapp.net') ? kaya.user.id : kaya.user.id + '@s.whatsapp.net';
-      const bot = metadata.participants.find(p => p.id === botId);
+      // Vérifie que le bot est admin
+      const meta = await kaya.groupMetadata(chatId);
+      const botId = `${kaya.user.id}@s.whatsapp.net`;
+      const bot = meta.participants.find(p => p.id === botId);
       if (!bot?.admin) return;
 
-      // Spam detection
+      // 🔹 Détection des bots
       const now = Date.now();
       global.messageRate ??= {};
       global.messageRate[sender] ??= [];
       global.messageRate[sender].push(now);
       global.messageRate[sender] = global.messageRate[sender].filter(t => now - t < 5000);
-      const isBotBySpam = global.messageRate[sender].length >= 6 || m.message?.protocolMessage || m.message?.reactionMessage;
 
-      // Name pattern detection
-      const senderName = m.pushName || '';
-      const isBotByName = botPatterns.some(pattern => pattern.test(senderName));
+      const isBotSpam = global.messageRate[sender].length >= 6 || m.message?.protocolMessage || m.message?.reactionMessage;
+      const isBotName = botPatterns.some(p => p.test(m.pushName || ''));
 
-      if (!isBotBySpam && !isBotByName) return;
+      if (!isBotSpam && !isBotName) return;
 
-      const mode = data.mode;
-
-      // Delete message
+      // Supprime le message
       try { await kaya.sendMessage(chatId, { delete: m.key }); } catch {}
 
-      if (mode === "delete") return;
+      // Action selon mode
+      const mode = data.mode;
       if (mode === "kick") return kaya.groupParticipantsUpdate(chatId, [sender], "remove");
-
-      // Warn
       if (mode === "warn") {
         global.botWarns[chatId] ??= {};
         global.botWarns[chatId][sender] = (global.botWarns[chatId][sender] || 0) + 1;
         saveBotWarns();
-
         if (global.botWarns[chatId][sender] >= 3) {
           delete global.botWarns[chatId][sender];
           saveBotWarns();
           await kaya.groupParticipantsUpdate(chatId, [sender], "remove");
         }
       }
+      // mode delete = rien d’autre à faire
 
     } catch (err) {
       console.error("❌ AntiBot detect error:", err);
