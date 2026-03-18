@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 import { contextInfo } from '../system/contextInfo.js';
 import checkAdminOrOwner from '../system/checkAdmin.js';
 import { buildWelcomeMessage } from '../system/welcomeTemplate.js';
-import { BOT_NAME, getBotName, BOT_VERSION } from '../system/botAssets.js';
+import { BOT_NAME } from '../system/botAssets.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -127,6 +127,7 @@ export default {
       const welcomeData = loadWelcomeData();
       const chatId = update.id;
 
+      // Vérifie si le welcome est activé
       if (!welcomeData.global && !welcomeData[chatId]) return;
 
       const metadata = await sock.groupMetadata(chatId);
@@ -143,6 +144,7 @@ export default {
 
         const username = '@' + userJid.split('@')[0];
 
+        // Récupère la photo de profil ou image par défaut
         let ppUrl;
         try {
           ppUrl = await sock.profilePictureUrl(userJid, 'image');
@@ -150,7 +152,8 @@ export default {
           ppUrl = 'https://i.ibb.co/7CQVJNm/default-profile.png';
         }
 
-        const welcomeText = buildWelcomeMessage({
+        // Construire le message de bienvenue (string)
+        const { messageText } = buildWelcomeMessage({
           username,
           groupName: metadata.subject || 'Nom inconnu',
           groupSize: metadata.participants.length,
@@ -158,25 +161,15 @@ export default {
           date
         });
 
-        const externalAdReply = {
-          title: `WELCOME TO ${metadata.subject}`,
-          body: `Powered by ${getBotName()} • v${BOT_VERSION}`,
-          mediaType: 1,
-          renderLargerThumbnail: true,
-          showAdAttribution: true
-        };
-
+        // Envoyer le message avec l'image et mentions
         await sock.sendMessage(chatId, {
           image: { url: ppUrl },
-          caption: welcomeText,
+          caption: messageText,
           mentions: [userJid],
-          contextInfo: {
-            ...contextInfo,
-            mentionedJid: [userJid],
-            externalAdReply
-          }
+          contextInfo: { ...contextInfo, mentionedJid: [userJid] }
         });
 
+        // Petit délai pour éviter le spam
         await new Promise(r => setTimeout(r, 500));
       }
 
