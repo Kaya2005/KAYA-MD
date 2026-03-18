@@ -1,35 +1,26 @@
 import { BOT_VERSION, getBotName } from './botAssets.js';
 
+/**
+ * Construit le message de bienvenue stylé (épuré)
+ */
 export function buildWelcomeMessage({
   username,
   groupName,
   groupSize,
   creationDate,
-  date,
-  totalCmds,
-  thumbnailBuffer
+  date
 }) {
   const messageText = `
-╭━━━〔  ẄELCOME  〕━━━⬣
+╔═━⊷  ẄELCOME  ⊶━═╗
 │
-├ 👋 Hello ${username}!
-├ 🏷️ Group: *${groupName}*
-├ 👥 Members: *${groupSize}*
-├ 🏗️ Created on: ${creationDate}
-├ 📅 Today: ${date}
+│ 👋 Hello       : ${username}
+│ 🏷️ Group       : ${groupName}
+│ 👥 Members     : ${groupSize}
+│ 🏗️ Created on  : ${creationDate}
+│ 📅 Today       : ${date}
 │
-╰━━━━━━━━━━━━━━━━⬣
+╚═━⊷ Have fun! ⊶━═╝
 `.trim();
 
-  // ===================== PREVIEW =====================
-  const externalAdReply = {
-    title: `WELCOME TO ${getBotName()}`,
-    body: `${totalCmds} COMMANDS • v${BOT_VERSION}`,
-    mediaType: 1,
-    renderLargerThumbnail: true,
-    showAdAttribution: true,
-    thumbnail: thumbnailBuffer
-  };
-
-  return { messageText, externalAdReply };
+  return { messageText };
 }
