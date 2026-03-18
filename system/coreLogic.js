@@ -1,14 +1,16 @@
-import fs from 'fs';
-import path from 'path';
+// ====================== coreLogic.js ======================
 import config from '../config.js';
 import checkAdminOrOwner from './checkAdmin.js';
 import { WARN_MESSAGES } from './warnMessages.js';
 import { handleMention } from './mentionHandler.js';
 import { handleAutoread, handleBotModes } from './initModules.js';
+import antibadword from '../commands/antibadword.js';
 
 const typingSessions = new Map();
+global.groupCooldown ??= {};
+global._adminCache ??= new Map();
 
-async function simulateTypingRecording(sock, chatId) {
+export async function simulateTypingRecording(sock, chatId) {
   if (!chatId || typingSessions.has(chatId)) return;
   const timer = setInterval(async () => {
     try {
@@ -23,106 +25,102 @@ async function simulateTypingRecording(sock, chatId) {
   }, 120000);
 }
 
-export async function coreLogic(context) {
-  const { sock, m, mRaw, body, commands, storeMessage, saveSettings } = context;
+export async function coreLogic({ sock, m, mRaw, body, commands, storeMessage, saveSettings }) {
+  if (!m?.chat || !sock) return;
 
-  try {
-    // Typing/recording automatique
-    if (global.botModes?.typing || global.botModes?.recording)
-      simulateTypingRecording(sock, m.chat);
+  const now = Date.now();
 
-    // ===== Parse commande =====
-    const PREFIX = global.PREFIX || config.PREFIX;
-    let isCommand = false, commandName = '', args = [];
-    if (global.allPrefix) {
-      const text = body.replace(/^[^a-zA-Z0-9]+/, '').trim();
-      const parts = text.split(/\s+/);
-      const potential = parts.shift()?.toLowerCase();
-      if (commands[potential]) { isCommand = true; commandName = potential; args = parts; }
-    } else if (body.startsWith(PREFIX)) {
-      const parts = body.slice(PREFIX.length).trim().split(/\s+/);
-      const potential = parts.shift()?.toLowerCase();
-      if (commands[potential]) { isCommand = true; commandName = potential; args = parts; }
-    }
-
-    // Admin / Owner check
-    if (m.isGroup && isCommand) {
-      const check = await checkAdminOrOwner(sock, m.chat, m.sender);
-      m.isAdmin = check.isAdmin;
-      m.isOwner = check.isOwner;
-    } else { m.isAdmin = false; m.isOwner = false; }
-    const ownerCheck = m.isOwner || m.fromMe;
-
-    // Bot modes / autoread
-    await handleBotModes(sock, m);
-    if (global.botModes?.autoread?.enabled) await handleAutoread(sock, m);
-
-    // Sécurité
-    if (global.privateMode && !ownerCheck && isCommand)
-      return sock.sendMessage(m.chat, { text: WARN_MESSAGES.PRIVATE_MODE }, { quoted: mRaw });
-    if (global.bannedUsers?.has(m.sender?.toLowerCase()) && isCommand)
-      return sock.sendMessage(m.chat, { text: WARN_MESSAGES.BANNED_USER }, { quoted: mRaw });
-    if (global.blockInbox && !m.isGroup && !ownerCheck && isCommand)
-      return sock.sendMessage(m.chat, { text: WARN_MESSAGES.BLOCK_INBOX }, { quoted: mRaw });
-
-    // Messages non-commandes (AntiBot/AntiLink/AntiSpam/AntiTag + Mentions)
-    if (!isCommand && m.isGroup) {
-      if (global.startupGrace.enabled) return;
-
-      try {
-        const checks = [];
-        const g = m.chat;
-        if (global.antiLinkGroups?.[g]?.enabled && commands.antilink?.detect) checks.push(commands.antilink.detect(sock, m));
-        if (global.antiBotGroups?.[g]?.enabled && commands.antibot?.detect) checks.push(commands.antibot.detect(sock, m));
-        if (global.antiSpamGroups?.[g]?.enabled && commands.antispam?.detect) checks.push(commands.antispam.detect(sock, m));
-        if (global.antiTagGroups?.[g]?.enabled && commands.antitag?.detect) checks.push(commands.antitag.detect(sock, m));
-        if (global.antiActuGroups?.[g]?.enabled && commands.antiActu?.detect)
-    checks.push(commands.antiActu.detect(sock, m));
-        if (global.antiChannelGroups?.[g]?.enabled && commands.antichannel?.detect) checks.push(commands.antichannel.detect(sock, m));
-        if (global.antiStatusGroups?.[g]?.enabled && commands.antistatus?.detect) checks.push(commands.antistatus.detect(sock, m));
-        void Promise.allSettled(checks);
-
-        // Mentions automatiques
-        if (!global._mentionState) {
-          try { global._mentionState = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data', 'mention.json'))); } 
-          catch { global._mentionState = { enabled: false }; }
-        }
-        if (global._mentionState.enabled && m.mentionedJid.includes(sock.user.id))
-          await handleMention(sock, m);
-
-      } catch (err) { console.error('❌ Non-command checks error:', err); }
-      return;
-    }
-
-    // Antidelete
-    if (commands.antidelete?.storeMessage && commands.antidelete.loadConfig?.().enabled)
-      await commands.antidelete.storeMessage(sock, mRaw).catch(() => {});
-
-    // Groupe désactivé
-    if (m.isGroup && global.disabledGroups.has(m.chat) && !ownerCheck)
-      return sock.sendMessage(m.chat, { text: WARN_MESSAGES.BOT_OFF }, { quoted: mRaw });
-
-    // Throttle par groupe
-    if (m.isGroup) {
-      const now = Date.now();
-      const delay = isCommand ? 300 : 1000;
-      if (!global.startupGrace.enabled && global.groupThrottle[m.chat] && now - global.groupThrottle[m.chat] < delay) return;
-      global.groupThrottle[m.chat] = now;
-    }
-
-    // Exécution de la commande
-    const cmd = commands[commandName];
-    if (!cmd) return;
-    if (cmd.group && !m.isGroup) return sock.sendMessage(m.chat, { text: WARN_MESSAGES.GROUP_ONLY }, { quoted: mRaw });
-    if (cmd.admin && !m.isAdmin && !ownerCheck) return sock.sendMessage(m.chat, { text: WARN_MESSAGES.ADMIN_ONLY(commandName) }, { quoted: mRaw });
-    if (cmd.ownerOnly && !ownerCheck) return sock.sendMessage(m.chat, { text: WARN_MESSAGES.OWNER_ONLY(commandName) }, { quoted: mRaw });
-
-    if (cmd.execute) await cmd.execute(sock, m, args, storeMessage).catch(() => {});
-    else if (cmd.run) await cmd.run(sock, m, args, storeMessage).catch(() => {});
-
-    saveSettings();
-
-  } catch (err) {
-    console.error('❌ CORE LOGIC error:', err);
+  // 🔥 Cooldown groupe
+  if (m.isGroup) {
+    if (global.groupCooldown[m.chat] && now - global.groupCooldown[m.chat] < 1500) return;
+    global.groupCooldown[m.chat] = now;
   }
+
+  // 🔥 Typing seulement privé
+  if ((global.botModes?.typing || global.botModes?.recording) && !m.isGroup) simulateTypingRecording(sock, m.chat);
+
+  // ===== Parse command =====
+  const PREFIX = global.PREFIX ?? config.PREFIX;
+  let isCommand = false, commandName = '', args = [];
+  const text = global.allPrefix
+    ? body?.replace(/^[^a-zA-Z0-9]+/, '').trim()
+    : body?.startsWith(PREFIX)
+      ? body.slice(PREFIX.length).trim()
+      : '';
+  if (text) {
+    const parts = text.split(/\s+/);
+    const potential = parts.shift()?.toLowerCase();
+    if (potential && commands[potential]) { isCommand = true; commandName = potential; args = parts; }
+  }
+
+  // ===== Admin/Owner check (cache 60s) =====
+  if (m.isGroup && isCommand) {
+    const cacheKey = `${m.chat}-${m.sender}`;
+    const cached = global._adminCache.get(cacheKey);
+    if (cached && Date.now() - cached.time < 60000) {
+      m.isAdmin = cached.isAdmin;
+      m.isOwner = cached.isOwner;
+    } else {
+      const check = await checkAdminOrOwner(sock, m.chat, m.sender);
+      m.isAdmin = check?.isAdmin || false;
+      m.isOwner = check?.isOwner || false;
+      global._adminCache.set(cacheKey, { isAdmin: m.isAdmin, isOwner: m.isOwner, time: Date.now() });
+    }
+  } else { m.isAdmin = false; m.isOwner = false; }
+  const ownerCheck = m.isOwner || m.fromMe;
+
+  // ===== Bot modes & autoread =====
+  handleBotModes(sock, m);
+  if (global.botModes?.autoread?.enabled) handleAutoread(sock, m);
+
+  // ===== Security =====
+  if ((global.privateMode && !ownerCheck && isCommand) || (global.bannedUsers?.has(m.sender?.toLowerCase()) && isCommand)) {
+    return sock.sendMessage(m.chat, { text: global.privateMode ? WARN_MESSAGES.PRIVATE_MODE : WARN_MESSAGES.BANNED_USER }, { quoted: mRaw });
+  }
+  if (global.blockInbox && !m.isGroup && !ownerCheck && isCommand) return;
+
+  // ===== Non-command group checks (modules activés seulement) =====
+  if (!isCommand && m.isGroup && !global.startupGrace?.enabled) {
+    const g = m.chat;
+    const checks = [];
+
+    const modules = [
+      { key: "antiLink", cmd: commands.antilink },
+      { key: "antiBot", cmd: commands.antibot },
+      { key: "antiSpam", cmd: commands.antispam },
+      { key: "antiTag", cmd: commands.antitag },
+      { key: "antiActu", cmd: commands.antiActu },
+      { key: "antiChannel", cmd: commands.antichannel },
+      { key: "antiStatus", cmd: commands.antistatus },
+      { key: "antiBadword", cmd: antibadword }
+    ];
+
+    for (const mod of modules) {
+      const groupData = global[`${mod.key}Groups`]?.[g];
+      if (groupData?.enabled && mod.cmd?.detect) {
+        checks.push(mod.cmd.detect(sock, m));
+      }
+    }
+
+    if (checks.length > 0) Promise.allSettled(checks).catch(() => {});
+
+    if (global._mentionState?.enabled && m.mentionedJid?.includes(sock.user?.id)) {
+      handleMention(sock, m).catch(console.error);
+    }
+
+    return;
+  }
+
+  // ===== Command execution =====
+  if (!isCommand) return;
+  if (m.isGroup && global.disabledGroups?.has(m.chat) && !ownerCheck) return sock.sendMessage(m.chat, { text: WARN_MESSAGES.BOT_OFF }, { quoted: mRaw });
+
+  const cmd = commands[commandName];
+  if (!cmd) return;
+  if (cmd.group && !m.isGroup) return sock.sendMessage(m.chat, { text: WARN_MESSAGES.GROUP_ONLY }, { quoted: mRaw });
+  if (cmd.admin && !m.isAdmin && !ownerCheck) return sock.sendMessage(m.chat, { text: WARN_MESSAGES.ADMIN_ONLY(commandName) }, { quoted: mRaw });
+  if (cmd.ownerOnly && !ownerCheck) return sock.sendMessage(m.chat, { text: WARN_MESSAGES.OWNER_ONLY(commandName) }, { quoted: mRaw });
+
+  Promise.resolve(cmd.execute ? cmd.execute(sock, m, args, storeMessage) : cmd.run?.(sock, m, args, storeMessage)).catch(console.error);
+  saveSettings();
 }

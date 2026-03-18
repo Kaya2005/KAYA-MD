@@ -1,9 +1,12 @@
+// ==================== system/menuBuilder.js ====================
 import { BOT_NAME, BOT_SLOGAN } from './botAssets.js';
 
+/**
+ * Construit le texte principal du menu
+ */
 export function buildMenuText({
   user,
   userId,
-  prefix = '.',
   mode,
   totalCmds,
   active,
@@ -11,14 +14,13 @@ export function buildMenuText({
 }) {
   return `
 ╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄◈
-┆ ✦ ${BOT_NAME} ✦
+┆    ${BOT_NAME} 
 ╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄◈
 ╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄◈
 ┆❱ user     : *${user}*
-┆❱ prefix   : *${prefix}*
-┆❱ mode     : *${mode}*
+┆❱ prefix   : *${global.PREFIX || ''}*
+┆❱ mode     : *${global.privateMode ? 'PRIVATE 🔒' : 'PUBLIC 🌍'}*
 ┆❱ cmds     : *${totalCmds}*
-┆❱ active   : *${active}*
 ╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄◈
 
 ${menuList}
@@ -27,11 +29,15 @@ ${BOT_SLOGAN}
 `.trim();
 }
 
-export function buildMenuCategoryText({ cat, cmds }) {
+/**
+ * Construit le texte pour une catégorie
+ */
+export function buildMenuCategoryText({ cat, cmds, showPrefix = false }) {
+  const prefix = showPrefix ? (global.PREFIX || '') : '';
   return `
 > ╢ ${cat.toUpperCase()} ♰
 ╭┄┄┄┄┄┄┄┄┄┄┄┄┄◈
-${cmds.map(c => `┆${c.toLowerCase()}`).join('\n')}
+${cmds.map(c => `┆${prefix}${c.toLowerCase()}`).join('\n')}
 ╰┄┄┄┄┄┄┄┄┄┄┄┄┄◈
 `.trim();
 }
