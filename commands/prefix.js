@@ -1,3 +1,4 @@
+// ==================== commands/prefix.js ====================
 import config, { saveConfig } from '../config.js';
 import { contextInfo } from '../system/contextInfo.js';
 
@@ -9,7 +10,6 @@ export default {
 
   run: async (sock, m, args) => {
     try {
-      // 📌 Show current prefix if no argument
       if (!args[0]) {
         return sock.sendMessage(
           m.chat,
@@ -19,7 +19,7 @@ export default {
 ━━━━━━━━━━━━━━━━━━
 ➡️ Prefix: \`${global.PREFIX || config.PREFIX}\`
 
-💡 To change the prefix: .prefix <new prefix>
+💡 Example: .prefix !
             `.trim(),
             contextInfo
           },
@@ -27,23 +27,21 @@ export default {
         );
       }
 
-      const newPrefix = args.join(' '); // accept any text, symbols, emojis, multiple characters
+      const newPrefix = args.join(' ');
 
-      // 💾 Save config
+      // 💾 Save
       saveConfig({ PREFIX: newPrefix });
 
-      // ⚡ Update global prefix immediately
+      // ⚡ Instant update
       global.PREFIX = newPrefix;
 
-      await sock.sendMessage(
+      return sock.sendMessage(
         m.chat,
         {
           text: `
-✅ *PREFIX SUCCESSFULLY UPDATED*
+✅ *PREFIX UPDATED*
 ━━━━━━━━━━━━━━━━━━
 ➡️ New prefix: \`${newPrefix}\`
-
-⚡ All users must now use this prefix.
           `.trim(),
           contextInfo
         },
@@ -54,7 +52,7 @@ export default {
       console.error('❌ prefix error:', err);
       return sock.sendMessage(
         m.chat,
-        { text: '❌ An error occurred while changing the prefix (KAYA-MD).', contextInfo },
+        { text: '❌ Error while changing prefix.', contextInfo },
         { quoted: m }
       );
     }

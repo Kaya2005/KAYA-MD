@@ -1,116 +1,135 @@
 // ==================== commands/tg.js ====================
-import fetch from 'node-fetch';
-import fs from 'fs';
-import path from 'path';
-import { writeExif } from '../lib/exif.js';
+import fetch from 'node-fetch'
+import fs from 'fs'
+import { exec } from 'child_process'
+import { writeExif } from '../lib/exif.js'
 
-const delay = time => new Promise(res => setTimeout(res, time));
-const BATCH_SIZE = 5;
-const BATCH_DELAY = 2000;
-const MAX_STICKERS = 120;
+const delay = ms => new Promise(r => setTimeout(r, ms))
+const MAX_STICKERS = 200
+
+function convertMedia(input, output, animated = false){
+  return new Promise((resolve, reject)=>{
+    const cmd = animated
+      ? `ffmpeg -y -i "${input}" -vf "scale=512:512:force_original_aspect_ratio=decrease,fps=15,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000" -c:v libwebp -loop 0 -preset default -an -vsync 0 "${output}"`
+      : `ffmpeg -y -i "${input}" -vf "scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000" -c:v libwebp -loop 0 -preset default -an -vsync 0 "${output}"`
+
+    exec(cmd, (err)=>{
+      if(err) reject(err)
+      else resolve()
+    })
+  })
+}
 
 export default {
   name: 'tg',
-  alias: ['telegram', 'stickertg'],
-  description: 'Download a Telegram sticker pack and send it on WhatsApp',
+  alias: ['telegram','stickertg'],
   category: 'Sticker',
+  description: 'Download Telegram sticker pack (animated supported)',
 
-  async run(kaya, m, args) {
-    try {
-      const url = args[0];
-      if (!url) {
-        return kaya.sendMessage(
-          m.chat,
-          { text: '⚠️ Please provide the Telegram pack URL.\nEx: .tg https://t.me/addstickers/Porcientoreal' },
-          { quoted: m }
-        );
+  async run(kaya, m, args){
+
+    try{
+
+      const url = args[0]
+
+      if(!url){
+        return kaya.sendMessage(m.chat,{
+          text:'⚠️ Example:\n.tg https://t.me/addstickers/PackName'
+        },{quoted:m})
       }
 
-      if (!/^https?:\/\/t\.me\/addstickers\/[A-Za-z0-9_]+$/i.test(url)) {
-        return kaya.sendMessage(
-          m.chat,
-          { text: '❌ Invalid link! Make sure it is a Telegram sticker pack.' },
-          { quoted: m }
-        );
+      if(!url.includes('t.me/addstickers/')){
+        return kaya.sendMessage(m.chat,{
+          text:'❌ Invalid Telegram sticker URL'
+        },{quoted:m})
       }
 
-      // 👤 pseudo de l'utilisateur (packname + author)
-      const pushName = m.pushName || m.sender.split('@')[0] || 'User';
+      const packName = url.split('/').pop()
+      const botToken = '8379893521:AAGmYtvhZ54NgKFB0_C1zsjkly7KcIIfWnU'
 
-      const packName = url.split('/').pop();
-      const botToken = '7801479976:AAGuPL0a7kXXBYz6XUSR_ll2SR5V_W6oHl4';
+      const res = await fetch(`https://api.telegram.org/bot${botToken}/getStickerSet?name=${packName}`)
+      const data = await res.json()
 
-      const res = await fetch(`https://api.telegram.org/bot${botToken}/getStickerSet?name=${encodeURIComponent(packName)}`);
-      if (!res.ok) throw new Error(`Telegram API error: ${res.status}`);
+      if(!data.ok) throw 'Invalid pack'
 
-      const packData = await res.json();
-      if (!packData.ok || !packData.result) throw new Error('Invalid or private pack');
+      let stickers = data.result.stickers
+      if(stickers.length > MAX_STICKERS) stickers = stickers.slice(0, MAX_STICKERS)
 
-      let stickers = packData.result.stickers;
-      if (stickers.length > MAX_STICKERS) stickers = stickers.slice(0, MAX_STICKERS);
+      const pushName = m.pushName || 'KAYA-MD'
 
-      await kaya.sendMessage(
-        m.chat,
-        { text: `📦 Pack found: ${stickers.length} stickers\n⏳ Downloading...` },
-        { quoted: m }
-      );
+      await kaya.sendMessage(m.chat,{
+        text:`📦 Pack: ${stickers.length} stickers\n⏳ Downloading...`
+      },{quoted:m})
 
-      let success = 0;
+      let success = 0
 
-      for (let i = 0; i < stickers.length; i += BATCH_SIZE) {
-        const batch = stickers.slice(i, i + BATCH_SIZE);
+      for(let i = 0; i < stickers.length; i++){
 
-        await Promise.all(batch.map(async (sticker, index) => {
-          try {
-            const fileRes = await fetch(`https://api.telegram.org/bot${botToken}/getFile?file_id=${sticker.file_id}`);
-            const fileData = await fileRes.json();
-            if (!fileData.ok) return;
+        try{
 
-            const fileUrl = `https://api.telegram.org/file/bot${botToken}/${fileData.result.file_path}`;
-            const buffer = await (await fetch(fileUrl)).arrayBuffer();
+          const sticker = stickers[i]
 
-            const tmpFile = {
-              data: Buffer.from(buffer),
-              mimetype: sticker.is_video ? 'video/mp4' : 'image/png'
-            };
+          const fileRes = await fetch(`https://api.telegram.org/bot${botToken}/getFile?file_id=${sticker.file_id}`)
+          const fileJson = await fileRes.json()
 
-            // ✅ packname + author = pseudo de l'utilisateur
-            const exifFilePath = await writeExif(tmpFile, {
-              packname: pushName,
-              author: pushName,
-              categories: [sticker.emoji || '🤖']
-            });
+          if(!fileJson.ok) continue
 
-            const stickerBuffer = fs.readFileSync(exifFilePath);
+          const fileUrl = `https://api.telegram.org/file/bot${botToken}/${fileJson.result.file_path}`
+          const buffer = Buffer.from(await (await fetch(fileUrl)).arrayBuffer())
 
-            await kaya.sendMessage(m.chat, {
-              sticker: stickerBuffer
-            });
+          const input = `./tmp_${Date.now()}_${i}`
+          const output = `./out_${Date.now()}_${i}.webp`
 
-            fs.unlinkSync(exifFilePath);
-            success++;
+          fs.writeFileSync(input, buffer)
 
-          } catch (err) {
-            console.error(`❌ Sticker error ${i + index}:`, err);
-          }
-        }));
+          const isAnimated = sticker.is_animated || sticker.is_video || fileJson.result.file_path.endsWith('.tgs')
 
-        await delay(BATCH_DELAY);
+          // 🔥 conversion PRO
+          await convertMedia(input, output, isAnimated)
+
+          const exifFile = await writeExif({
+            data: fs.readFileSync(output),
+            mimetype: 'image/webp'
+          },{
+            packname: pushName,
+            author: pushName,
+            categories:[sticker.emoji || '🤖']
+          })
+
+          const stickerBuffer = fs.readFileSync(exifFile)
+
+          await kaya.sendMessage(m.chat,{sticker:stickerBuffer})
+
+          success++
+
+          // 🧹 CLEAN
+          try{
+            fs.unlinkSync(input)
+            fs.unlinkSync(output)
+            fs.unlinkSync(exifFile)
+          }catch{}
+
+          await delay(700)
+
+        }catch(e){
+          console.log('Sticker error', e)
+        }
+
       }
 
-      await kaya.sendMessage(
-        m.chat,
-        { text: `✅ Stickers sent: ${success}/${stickers.length}` },
-        { quoted: m }
-      );
+      await kaya.sendMessage(m.chat,{
+        text:`✅ Stickers sent: ${success}/${stickers.length}`
+      },{quoted:m})
 
-    } catch (err) {
-      console.error('❌ tg command error:', err);
-      await kaya.sendMessage(
-        m.chat,
-        { text: '❌ Unable to download the pack. Check the URL or pack visibility.' },
-        { quoted: m }
-      );
+    }catch(err){
+
+      console.log(err)
+
+      await kaya.sendMessage(m.chat,{
+        text:'❌ Failed to download pack'
+      },{quoted:m})
+
     }
+
   }
-};
+}

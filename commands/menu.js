@@ -1,7 +1,7 @@
+// ==================== commands/menu.js ====================
 import fs from 'fs';
 import path from 'path';
 import config from '../config.js';
-import { contextInfo } from '../system/contextInfo.js';
 import { getBotImage, getBotName, BOT_VERSION } from '../system/botAssets.js';
 import { buildMenuText, buildMenuCategoryText } from '../system/menuTemplate.js';
 
@@ -10,13 +10,13 @@ const dataDir = path.join(process.cwd(), 'data');
 const privateFile = path.join(dataDir, 'privateMode.json');
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
-// Charger le mode private depuis le fichier JSON au démarrage
+// Charger le mode private depuis le fichier JSON
 if (!global.privateMode) {
   if (fs.existsSync(privateFile)) {
     try {
       global.privateMode = JSON.parse(fs.readFileSync(privateFile, 'utf-8')).private;
     } catch {
-      global.privateMode = false; // fallback
+      global.privateMode = false;
     }
   } else {
     global.privateMode = false;
@@ -61,15 +61,14 @@ export default {
   description: 'Menu command',
 
   async execute(Kaya, m) {
-    const mode = global.privateMode ? 'PRIVATE' : 'PUBLIC'; // ✅ reflète le vrai état
-    const prefix = config.PREFIX || '.';
+    const mode = global.privateMode ? 'PRIVATE' : 'PUBLIC';
 
-    // Mention utilisateur
     const userId = m.sender;
     const userNumber = userId.split('@')[0];
     const user = `@${userNumber}`;
 
     const categories = await loadCommands();
+
     const sortedCats = Object.keys(categories).sort(
       (a, b) => categories[b].length - categories[a].length
     );
@@ -80,7 +79,8 @@ export default {
       menuList +=
         buildMenuCategoryText({
           cat,
-          cmds: categories[cat].map(c => `${prefix}${c}`)
+          cmds: categories[cat], // <- pas de préfixe ici
+          showPrefix: false       // <- supprime le point
         }) + '\n\n';
     }
 
@@ -89,7 +89,6 @@ export default {
     const menuText = buildMenuText({
       user,
       userId,
-      prefix,
       mode,
       totalCmds,
       active: 1,
@@ -100,26 +99,24 @@ export default {
     let thumbnailBuffer;
     const botImage = getBotImage();
 
-    if (botImage?.type === 'buffer') {
-      thumbnailBuffer = botImage.value;
-    }
+    if (botImage?.type === 'buffer') thumbnailBuffer = botImage.value;
 
     if (!thumbnailBuffer) {
       try {
         const localPath = path.join(process.cwd(), 'system', 'bot.jpg');
-        if (fs.existsSync(localPath)) {
-          thumbnailBuffer = fs.readFileSync(localPath);
-        }
-      } catch (e) {
+        if (fs.existsSync(localPath)) thumbnailBuffer = fs.readFileSync(localPath);
+      } catch {
         console.warn('⚠️ bot.jpg fallback failed');
       }
     }
 
+    // ===================== PREVIEW =====================
     const externalAdReply = {
       title: `WELCOME TO ${getBotName()}`,
       body: `${totalCmds} COMMANDS • v${BOT_VERSION}`,
       mediaType: 1,
       renderLargerThumbnail: true,
+      showAdAttribution: true,
       thumbnail: thumbnailBuffer
     };
 
@@ -129,7 +126,6 @@ export default {
       {
         text: menuText,
         contextInfo: {
-          ...contextInfo,
           externalAdReply,
           mentionedJid: [userId]
         }

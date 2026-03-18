@@ -4,7 +4,7 @@ import { buildTagAllMessage } from '../system/tagallTemplate.js';
 export default {
   name: "tagall",
   alias: ["mention", "everyone"],
-  description: "📢 Mentionne tous les membres du groupe avec une liste numérotée.",
+  description: "📢 Mentions all group members with a numbered list.",
   category: "Groupe",
   group: true,
   admin: false,
@@ -14,7 +14,7 @@ export default {
       if (!m.isGroup) {
         return kaya.sendMessage(
           m.chat,
-          { text: "⛔ Cette commande est uniquement disponible dans les groupes." },
+          { text: "⛔ This command can only be used in groups." },
           { quoted: m }
         );
       }
@@ -23,36 +23,42 @@ export default {
       const participants = metadata.participants.map(p => p.id);
 
       const now = new Date();
-      const date = now.toLocaleDateString('fr-FR');
-      const time = now.toLocaleTimeString('fr-FR');
+      const date = now.toLocaleDateString('en-GB');
+      const time = now.toLocaleTimeString('en-GB');
 
       const mentionText = participants
         .map((p, i) => `${i + 1}. @${p.split('@')[0]}`)
         .join('\n');
 
-      const fullMessage = buildTagAllMessage({
+      const totalCmds = kaya.commands.size || 0; // or your total commands variable
+      const thumbnailBuffer = null; // or provide a buffer if you want an image preview
+
+      const { messageText, externalAdReply } = buildTagAllMessage({
         date,
         time,
         membersCount: participants.length,
-        mentionText
+        mentionText,
+        totalCmds,
+        thumbnailBuffer
       });
 
       await sendWithBotImage(
         kaya,
         m.chat,
         {
-          caption: fullMessage,
+          caption: messageText,
           mentions: participants,
-          contextInfo: { mentionedJid: participants }
+          contextInfo: { mentionedJid: participants },
+          externalAdReply
         },
         { quoted: m }
       );
 
     } catch (error) {
-      console.error("❌ Erreur tagall :", error);
+      console.error("❌ TagAll Error:", error);
       await kaya.sendMessage(
         m.chat,
-        { text: "❌ Une erreur est survenue lors de la mention." },
+        { text: "❌ An error occurred while mentioning all members." },
         { quoted: m }
       );
     }

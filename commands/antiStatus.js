@@ -1,181 +1,99 @@
-// ==================== commands/antiStatus.js ====================
+// ==================== commands/antistatus.js ====================
 import fs from "fs";
 import path from "path";
 import checkAdminOrOwner from "../system/checkAdmin.js";
 
-// 📂 Fichier pour sauvegarder les groupes
-const antiStatusFile = path.join(process.cwd(), "data/antiStatusGroups.json");
+const DATA_DIR = path.join(process.cwd(), "data");
+const STATUS_FILE = path.join(DATA_DIR, "antistatus.json");
 
-// ----------------- Load & Save -----------------
-function loadAntiStatusGroups() {
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+
+const loadJSON = (file) => {
   try {
-    if (fs.existsSync(antiStatusFile)) {
-      return JSON.parse(fs.readFileSync(antiStatusFile, "utf-8"));
-    }
-  } catch (err) {
-    console.error("❌ Error loading antiStatusGroups.json:", err);
-  }
-  return {};
-}
+    if (!fs.existsSync(file)) fs.writeFileSync(file, JSON.stringify({}, null, 2));
+    return JSON.parse(fs.readFileSync(file, "utf-8"));
+  } catch { return {}; }
+};
+const saveJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2));
 
-function saveAntiStatusGroups() {
-  try {
-    fs.writeFileSync(
-      antiStatusFile,
-      JSON.stringify(global.antiStatusGroups, null, 2)
-    );
-  } catch (err) {
-    console.error("❌ Error saving antiStatusGroups.json:", err);
-  }
-}
+global.antiStatusGroups ??= loadJSON(STATUS_FILE);
+const saveAntiStatusGroups = () => saveJSON(STATUS_FILE, global.antiStatusGroups);
 
-// ----------------- Global Initialization -----------------
-if (!global.antiStatusGroups) global.antiStatusGroups = loadAntiStatusGroups();
-if (!global.userStatusWarns) global.userStatusWarns = {};
-
-// ================== MODULE ==================
 export default {
-  name: "antiStatus",
-  description: "Supprime automatiquement les statuts WhatsApp dans les groupes",
+  name: "antistatus",
+  description: "Automatically deletes status/story mentions in the group",
   category: "Groupe",
   group: true,
   admin: true,
   botAdmin: true,
 
-  // ==================== COMMAND ====================
-  run: async (kaya, m, args) => {
-    const chatId = m.chat;
+  run: async (sock, m, args) => {
+    try {
+      const chatId = m.chat;
+      const check = await checkAdminOrOwner(sock, chatId, m.sender);
+      if (!check.isAdminOrOwner) return sock.sendMessage(chatId, { text: "🚫 Admins only." }, { quoted: m });
 
-    if (!m.isGroup) {
-      return kaya.sendMessage(
-        chatId,
-        { text: "❌ Cette commande ne fonctionne que dans les groupes." },
-        { quoted: m }
-      );
-    }
+      const action = args[0]?.toLowerCase();
+      if (!action || !["on","off","status"].includes(action)) {
+        return sock.sendMessage(chatId, { text:
+`📌 AntiStatus Command
+.antistatus on     → Enable
+.antistatus off    → Disable
+.antistatus status → Check status`
+        }, { quoted: m });
+      }
 
-    const action = args[0]?.toLowerCase();
-    if (!action || !["on", "off", "warn", "kick", "status"].includes(action)) {
-      return kaya.sendMessage(
-        chatId,
-        {
-          text:
-`📛 *ANTI-STATUS COMMAND*
-.antiStatus on      → Activer (mode WARN)
-.antiStatus off     → Désactiver
-.antiStatus warn    → 4 warnings = kick
-.antiStatus kick    → Kick direct
-.antiStatus status  → Affiche l'état actuel`
-        },
-        { quoted: m }
-      );
-    }
+      if (action === "status") {
+        const data = global.antiStatusGroups[chatId];
+        return sock.sendMessage(chatId, { text: data?.enabled ? "✅ AntiStatus ENABLED" : "❌ AntiStatus DISABLED" }, { quoted: m });
+      }
 
-    // 📊 STATUS
-    if (action === "status") {
-      const data = global.antiStatusGroups[chatId];
-      const enabled = data?.enabled ? "✅ Activé" : "❌ Désactivé";
-      const mode = data?.mode?.toUpperCase() || "WARN";
-      return kaya.sendMessage(
-        chatId,
-        { text: `📊 Anti-status: ${enabled}\n📊 Mode: ${mode}` },
-        { quoted: m }
-      );
-    }
+      if (action === "on") global.antiStatusGroups[chatId] = { enabled: true };
+      else if (action === "off") delete global.antiStatusGroups[chatId];
 
-    // 🔐 Vérification Admin/Owner
-    const check = await checkAdminOrOwner(kaya, chatId, m.sender);
-    if (!check.isAdminOrOwner) {
-      return kaya.sendMessage(
-        chatId,
-        { text: "🚫 Seulement pour les admins ou le propriétaire." },
-        { quoted: m }
-      );
-    }
-
-    // ---------- ACTIONS ----------
-    if (action === "on" || action === "warn") {
-      global.antiStatusGroups[chatId] = { enabled: true, mode: "warn" };
       saveAntiStatusGroups();
-      return kaya.sendMessage(
-        chatId,
-        { text: "✅ Anti-status activé\n⚠️ Mode WARN (4 warnings = kick)" },
-        { quoted: m }
-      );
-    }
 
-    if (action === "kick") {
-      global.antiStatusGroups[chatId] = { enabled: true, mode: "kick" };
-      saveAntiStatusGroups();
-      return kaya.sendMessage(
-        chatId,
-        { text: "✅ Anti-status activé\n🚫 Mode Kick direct" },
-        { quoted: m }
-      );
-    }
+      return sock.sendMessage(chatId, { text: action === "on" ? "✅ AntiStatus enabled" : "❌ AntiStatus disabled" }, { quoted: m });
 
-    if (action === "off") {
-      delete global.antiStatusGroups[chatId];
-      delete global.userStatusWarns[chatId];
-      saveAntiStatusGroups();
-      return kaya.sendMessage(
-        chatId,
-        { text: "❌ Anti-status désactivé." },
-        { quoted: m }
-      );
+    } catch (err) {
+      console.error("❌ antistatus.js error:", err);
+      sock.sendMessage(m.chat, { text: "❌ AntiStatus error." }, { quoted: m });
     }
   },
 
-  // ==================== DETECTION ====================
-  detect: async (kaya, m) => {
+  detect: async (sock, m) => {
     try {
       if (!m.isGroup || m.key?.fromMe) return;
 
       const chatId = m.chat;
-      if (!global.antiStatusGroups?.[chatId]?.enabled) return;
+      const data = global.antiStatusGroups[chatId];
+      if (!data?.enabled) return;
 
-      const sender = m.sender;
-      const mode = global.antiStatusGroups[chatId].mode || "warn";
+      // Check if bot is admin
+      const meta = await sock.groupMetadata(chatId);
+      const botId = sock.user.id.includes("@s.whatsapp.net") ? sock.user.id : `${sock.user.id}@s.whatsapp.net`;
+      const bot = meta.participants.find(p => p.id === botId);
+      if (!bot?.admin) return;
 
-      // ✅ Skip admin/owner
-      const check = await checkAdminOrOwner(kaya, chatId, sender);
-      if (check.isAdminOrOwner) return;
+      // Ignore admins
+      const senderData = meta.participants.find(p => p.id === m.sender);
+      if (senderData?.admin) return;
 
-      // 🔥 DETECTION STATUS WHATSAPP
-      const isStatus =
-        m.message?.protocolMessage?.type === 14 ||
-        /votre statut/i.test(m.body || "");
+      // Check if the message is a status/story mention
+      if (!m.message?.protocolMessage && !m.message?.reactionMessage) return;
 
-      if (!isStatus) return;
-
-      // 🗑️ Supprime le message
-      await kaya.sendMessage(chatId, { delete: m.key }).catch(() => {});
-
-      if (mode === "kick") {
-        await kaya.groupParticipantsUpdate(chatId, [sender], "remove");
-        return;
+      // Delete the message
+      try {
+        await sock.sendMessage(chatId, { delete: m.key });
+        console.log(`✅ AntiStatus: deleted message from ${m.pushName || m.sender}`);
+      } catch {
+        await sock.sendMessage(chatId, {
+          text: "❌ I cannot delete this message, maybe I'm not admin?",
+        }, { quoted: m });
       }
 
-      if (mode === "warn") {
-        global.userStatusWarns[chatId] ??= {};
-        global.userStatusWarns[chatId][sender] =
-          (global.userStatusWarns[chatId][sender] || 0) + 1;
-
-        const warns = global.userStatusWarns[chatId][sender];
-
-        await kaya.sendMessage(chatId, {
-          text: `⚠️ *ANTI-STATUS*\n👤 @${sender.split("@")[0]}\n📊 Warning: ${warns}/4`,
-          mentions: [sender]
-        });
-
-        if (warns >= 4) {
-          delete global.userStatusWarns[chatId][sender];
-          await kaya.groupParticipantsUpdate(chatId, [sender], "remove");
-        }
-      }
-
-    } catch (e) {
-      console.error("❌ AntiStatus detect error:", e);
+    } catch (err) {
+      console.error("❌ AntiStatus detect error:", err);
     }
   }
 };

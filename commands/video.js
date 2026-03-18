@@ -7,7 +7,7 @@ import { BOT_NAME } from '../system/botAssets.js';
 const AXIOS_DEFAULTS = {
 	timeout: 60000,
 	headers: {
-		'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+		'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
 		'Accept': 'application/json, text/plain, */*'
 	}
 };
@@ -26,10 +26,13 @@ async function tryRequest(getter, attempts = 3) {
 	throw lastError;
 }
 
-// Yupra MP4 API
+// ================= APIs =================
+
+// Yupra
 async function getYupraVideoByUrl(url) {
 	const apiUrl = `https://api.yupra.my.id/api/downloader/ytmp4?url=${encodeURIComponent(url)}`;
 	const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
+
 	if (res?.data?.success && res?.data?.data?.download_url) {
 		return {
 			download: res.data.data.download_url,
@@ -40,10 +43,11 @@ async function getYupraVideoByUrl(url) {
 	throw new Error('Yupra API failed');
 }
 
-// Okatsu MP4 API (fallback)
+// Okatsu
 async function getOkatsuVideoByUrl(url) {
 	const apiUrl = `https://okatsu-rolezapiiz.vercel.app/downloader/ytmp4?url=${encodeURIComponent(url)}`;
 	const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
+
 	if (res?.data?.result?.mp4) {
 		return {
 			download: res.data.result.mp4,
@@ -51,6 +55,20 @@ async function getOkatsuVideoByUrl(url) {
 		};
 	}
 	throw new Error('Okatsu API failed');
+}
+
+// Widipe (🔥 backup solide)
+async function getWidipeVideo(url) {
+	const apiUrl = `https://widipe.com/api/download/ytmp4?url=${encodeURIComponent(url)}`;
+	const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
+
+	if (res?.data?.result?.url) {
+		return {
+			download: res.data.result.url,
+			title: res.data.result.title
+		};
+	}
+	throw new Error('Widipe API failed');
 }
 
 // ==================== MAIN COMMAND ====================
@@ -103,15 +121,24 @@ by ${BOT_NAME}`
 				{ quoted: m }
 			);
 
-			// Get MP4 link
+			// ================= DOWNLOAD =================
 			let videoData;
+
 			try {
 				videoData = await getYupraVideoByUrl(video.url);
 			} catch {
-				videoData = await getOkatsuVideoByUrl(video.url);
+				try {
+					videoData = await getOkatsuVideoByUrl(video.url);
+				} catch {
+					videoData = await getWidipeVideo(video.url);
+				}
 			}
 
-			// Send video (FAST – no buffering)
+			if (!videoData?.download) {
+				throw new Error('No download link');
+			}
+
+			// ================= SEND =================
 			await Kaya.sendMessage(
 				m.chat,
 				{
@@ -125,9 +152,12 @@ by ${BOT_NAME}`
 
 		} catch (err) {
 			console.error('❌ VIDEO ERROR:', err);
+
 			await Kaya.sendMessage(
 				m.chat,
-				{ text: `❌ Failed to download video.\n\nby ${BOT_NAME}` },
+				{ 
+					text: `❌ Failed to download video.\n\n🔗 Try this link:\n${args.join(' ')}\n\nby ${BOT_NAME}` 
+				},
 				{ quoted: m }
 			);
 		}

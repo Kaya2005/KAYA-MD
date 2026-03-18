@@ -1,181 +1,96 @@
-import { contextInfo } from '../system/contextInfo.js';
-import fs from 'fs';
-import path from 'path';
+import fs from "fs";
+import path from "path";
+import checkAdminOrOwner from "../system/checkAdmin.js";
+import { contextInfo } from "../system/contextInfo.js";
 
-const configPath = path.join(process.cwd(), 'data', 'autoStatus.json');
+const DATA_DIR = path.join(process.cwd(), "data");
+const FILE_PATH = path.join(DATA_DIR, "autoStatus.json");
 
-// Initialize config file if it doesn't exist
-if (!fs.existsSync(configPath)) {
-  fs.writeFileSync(
-    configPath,
-    JSON.stringify({ enabled: false, reactOn: false }, null, 2)
-  );
-}
+// Crée le dossier si inexistant
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
-// Helper functions
-function loadConfig() {
-  try {
-    return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-  } catch {
-    return { enabled: false, reactOn: false };
-  }
-}
+// Charge ou initialise la config
+global.autoStatusConfig ??= fs.existsSync(FILE_PATH)
+  ? JSON.parse(fs.readFileSync(FILE_PATH, "utf-8"))
+  : { enabled: false, reactOn: false };
 
-function saveConfig(cfg) {
-  fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2));
-}
+const saveConfig = () => fs.writeFileSync(FILE_PATH, JSON.stringify(global.autoStatusConfig, null, 2));
 
 export default {
-  name: 'autostatus',
-  description: 'Enable/disable automatic status viewing and reactions',
-  category: 'Owner',
-  ownerOnly: true,
+  name: "autostatus",
+  description: "Auto view & react to WhatsApp statuses",
+  category: "Groupe",
+  group: true,
+  admin: true,
+  botAdmin: false,
 
   run: async (kaya, m, args) => {
     try {
+      const chatId = m.chat;
+      const sender = m.sender;
+
+      // ✅ Vérifie si admin/owner
+      const check = await checkAdminOrOwner(kaya, chatId, sender);
+      if (!check.isAdminOrOwner) 
+        return kaya.sendMessage(chatId, { text: "🚫 Only Admins or Owner can use this command.", contextInfo }, { quoted: m });
+
       const action = args[0]?.toLowerCase();
-      const config = loadConfig();
 
-      // Show help
-      if (!['on', 'off', 'status', 'react'].includes(action)) {
-        return kaya.sendMessage(
-          m.chat,
-          {
-            text: `👁️ *Auto Status*
-
-Usage:
-.autostatus on
-.autostatus off
-.autostatus status
-.autostatus react on/off
-
-📌 Function:
-The bot will automatically view statuses and can react to them and forward them to the owner.`,
-            contextInfo
-          },
-          { quoted: m }
-        );
+      // 🔹 Si pas d'argument, afficher le status actuel
+      if (!action) {
+        return kaya.sendMessage(chatId, {
+          text: `🔄 *Auto Status Settings*\n\n📱 Auto Status View: ${global.autoStatusConfig.enabled ? "✅ Enabled" : "❌ Disabled"}\n💫 Status Reactions: ${global.autoStatusConfig.reactOn ? "✅ Enabled" : "❌ Disabled"}\n\nCommands:\n.autostatus on/off\n.autostatus react on/off`,
+          contextInfo
+        }, { quoted: m });
       }
 
-      // Enable AutoStatus
-      if (action === 'on') {
-        config.enabled = true;
-        saveConfig(config);
-
-        // Attach listener once
-        if (!global.autoStatusListenerAttached) {
-          global.autoStatusListenerAttached = true;
-          const ownerJid = kaya.user.id.split(':')[0] + '@s.whatsapp.net';
-
-          kaya.ev.on('stories.update', async (updates) => {
-            if (!config.enabled) return;
-
-            for (const update of updates) {
-              try {
-                const key = update.key;
-                const msg = update.message;
-                if (!msg) continue;
-
-                const sender = key.participant || key.remoteJid;
-
-                // Mark as seen
-                await kaya.sendReadReceipt(key.remoteJid, sender, [key.id]);
-
-                // React if enabled
-                if (config.reactOn) {
-                  await kaya.relayMessage(
-                    'status@broadcast',
-                    {
-                      reactionMessage: {
-                        key: { remoteJid: 'status@broadcast', id: key.id, participant: sender, fromMe: false },
-                        text: '💚'
-                      }
-                    },
-                    { messageId: key.id, statusJidList: [sender] }
-                  );
-                }
-
-                // Forward to owner
-                if (msg.imageMessage) {
-                  await kaya.sendMessage(ownerJid, {
-                    image: { url: msg.imageMessage },
-                    caption: `👁️ Status from @${sender.split('@')[0]}`,
-                    mentions: [sender]
-                  });
-                } else if (msg.videoMessage) {
-                  await kaya.sendMessage(ownerJid, {
-                    video: { url: msg.videoMessage },
-                    caption: `👁️ Status from @${sender.split('@')[0]}`,
-                    mentions: [sender]
-                  });
-                } else if (msg.conversation) {
-                  await kaya.sendMessage(ownerJid, {
-                    text: `👁️ Status from @${sender.split('@')[0]}:\n\n${msg.conversation}`,
-                    mentions: [sender]
-                  });
-                }
-              } catch (err) {
-                console.error('❌ AutoStatus DM error:', err);
-              }
-            }
-          });
-        }
-
-        return kaya.sendMessage(
-          m.chat,
-          { text: '✅ *Auto Status enabled*', contextInfo },
-          { quoted: m }
-        );
+      // 🔹 Activer/Désactiver lecture auto
+      if (action === "on" || action === "off") {
+        global.autoStatusConfig.enabled = action === "on";
+        saveConfig();
+        return kaya.sendMessage(chatId, { text: `${action === "on" ? "✅" : "❌"} Auto status view ${action === "on" ? "enabled" : "disabled"}!`, contextInfo }, { quoted: m });
       }
 
-      // Disable AutoStatus
-      if (action === 'off') {
-        config.enabled = false;
-        saveConfig(config);
-        return kaya.sendMessage(
-          m.chat,
-          { text: '❌ *Auto Status disabled*', contextInfo },
-          { quoted: m }
-        );
+      // 🔹 Activer/Désactiver réactions
+      if (action === "react") {
+        const reactCmd = args[1]?.toLowerCase();
+        if (!["on","off"].includes(reactCmd))
+          return kaya.sendMessage(chatId, { text: "❌ Specify .autostatus react on/off", contextInfo }, { quoted: m });
+
+        global.autoStatusConfig.reactOn = reactCmd === "on";
+        saveConfig();
+        return kaya.sendMessage(chatId, { text: `💫 Status reactions ${reactCmd === "on" ? "enabled" : "disabled"}!`, contextInfo }, { quoted: m });
       }
 
-      // Check status
-      if (action === 'status') {
-        return kaya.sendMessage(
-          m.chat,
-          {
-            text: `👁️ *Auto Status*\nStatus: ${config.enabled ? '✅ ENABLED' : '❌ DISABLED'}\nReactions: ${config.reactOn ? '💚 ENABLED' : '❌ DISABLED'}`,
-            contextInfo
-          },
-          { quoted: m }
-        );
-      }
+      return kaya.sendMessage(chatId, { text: "❌ Invalid command! Use .autostatus on/off or .autostatus react on/off", contextInfo }, { quoted: m });
 
-      // Toggle reactions
-      if (action === 'react') {
-        const sub = args[1]?.toLowerCase();
-        if (!['on', 'off'].includes(sub)) {
-          return kaya.sendMessage(
-            m.chat,
-            { text: '❌ Usage: .autostatus react on/off', contextInfo },
-            { quoted: m }
-          );
-        }
-        config.reactOn = sub === 'on';
-        saveConfig(config);
-        return kaya.sendMessage(
-          m.chat,
-          { text: `💫 Status reactions ${config.reactOn ? 'enabled' : 'disabled'}`, contextInfo },
-          { quoted: m }
-        );
-      }
     } catch (err) {
-      console.error('❌ autostatus error:', err);
-      await kaya.sendMessage(
-        m.chat,
-        { text: '❌ An error occurred while executing the command.', contextInfo },
-        { quoted: m }
-      );
+      console.error("❌ autostatus.js error:", err);
+    }
+  },
+
+  // 🔹 Détecte et gère la lecture + réaction auto
+  detect: async (kaya, status) => {
+    try {
+      if (!global.autoStatusConfig?.enabled) return;
+
+      const key = status.key;
+      if (!key || key.remoteJid !== "status@broadcast") return;
+
+      // Lire le statut
+      await kaya.readMessages([key]);
+
+      // Réagir si activé
+      if (global.autoStatusConfig.reactOn) {
+        await kaya.relayMessage(
+          "status@broadcast",
+          { reactionMessage: { key, text: "💚" } },
+          { messageId: key.id }
+        ).catch(() => {});
+      }
+
+    } catch (err) {
+      console.error("❌ Error in autostatus detect:", err);
     }
   }
 };

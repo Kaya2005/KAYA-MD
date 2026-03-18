@@ -9,7 +9,7 @@ export default {
   name: 'url',
   alias: ['catbox', 'upload', 'link'],
   description: '🔗 Generates a Catbox link from media (image, video, audio, sticker)',
-  category: 'Image',
+  category: 'image',
   usage: '<reply to media>',
 
   async execute(sock, m, args) {

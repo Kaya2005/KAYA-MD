@@ -1,18 +1,18 @@
-import { contextInfo } from "../system/contextInfo.js";
+// ==================== commands/mode.js ====================
 import fs from 'fs';
 import path from 'path';
+import { contextInfo } from '../system/contextInfo.js';
 
 const dataDir = path.join(process.cwd(), 'data');
-const privateFile = path.join(dataDir, 'privateMode.json');
+const file = path.join(dataDir, 'mode.json');
 
-// Crée le dossier si nécessaire
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
-// Charger la valeur persistante au démarrage
+// Load
 if (global.privateMode === undefined) {
-  if (fs.existsSync(privateFile)) {
+  if (fs.existsSync(file)) {
     try {
-      global.privateMode = JSON.parse(fs.readFileSync(privateFile, 'utf-8')).private;
+      global.privateMode = JSON.parse(fs.readFileSync(file)).private;
     } catch {
       global.privateMode = false;
     }
@@ -22,44 +22,50 @@ if (global.privateMode === undefined) {
 }
 
 export default {
-  name: "private",
-  description: "🔒 Enable or disable bot private mode (owner only)",
+  name: "mode",
+  description: "Change bot mode (public/private)",
   category: "Owner",
-  ownerOnly: true, // ✅ Managed by handler
+  ownerOnly: true,
 
   run: async (sock, m, args) => {
     try {
       const action = args[0]?.toLowerCase();
-      if (!action || !["on", "off"].includes(action)) {
+
+      if (!action || !["public", "private"].includes(action)) {
         return sock.sendMessage(
           m.chat,
-          { text: "🔒 Usage:\n.private on\n.private off", contextInfo },
+          {
+            text: `⚙️ Usage:
+.mode public
+.mode private`,
+            contextInfo
+          },
           { quoted: m }
         );
       }
 
-      // Définir la valeur globale
-      global.privateMode = action === "on";
+      // 🔥 Update instantly
+      global.privateMode = action === "private";
 
-      // Sauvegarder dans le fichier JSON pour persistance
-      fs.writeFileSync(privateFile, JSON.stringify({ private: global.privateMode }));
+      // 💾 Save
+      fs.writeFileSync(file, JSON.stringify({ private: global.privateMode }));
 
       return sock.sendMessage(
         m.chat,
         {
           text: global.privateMode
-            ? "✅ *Private mode enabled*: only owner commands are accepted."
-            : "❌ *Private mode disabled*: everyone can use commands.",
+            ? "🔒 Bot is now in *PRIVATE MODE*"
+            : "🌍 Bot is now in *PUBLIC MODE*",
           contextInfo
         },
         { quoted: m }
       );
 
     } catch (err) {
-      console.error("❌ private.js error:", err);
-      return sock.sendMessage(
+      console.error("❌ mode error:", err);
+      sock.sendMessage(
         m.chat,
-        { text: "❌ An error occurred while toggling private mode.", contextInfo },
+        { text: "❌ Error changing mode.", contextInfo },
         { quoted: m }
       );
     }

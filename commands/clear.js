@@ -1,28 +1,15 @@
-export default {
-  name: 'clear',
-  description: 'Supprime tout le contenu envoyé par le bot (comme WhatsApp)',
-  category: 'Owner',
+import chalk from 'chalk';
 
-  async run(kaya, m, msg, store) {
-    // 🔐 Owner uniquement (comme tu l’as demandé)
-    if (!m.fromMe) return;
+export async function clearCommand(sock, chatId) {
+  try {
+    // Envoyer un message temporaire pour informer
+    const message = await sock.sendMessage(chatId, { text: '🧹 Clearing bot messages...' });
+    
+    // Supprimer ce message immédiatement après
+    await sock.sendMessage(chatId, { delete: message.key });
 
-    const chatId = m.chat;
-    const chatMessages = store?.messages?.get(chatId);
-
-    if (!chatMessages) return;
-
-    for (const data of chatMessages.values()) {
-      if (data.key?.fromMe) {
-        await kaya.sendMessage(chatId, {
-          delete: {
-            remoteJid: chatId,
-            fromMe: true,
-            id: data.key.id,
-            participant: data.key.participant
-          }
-        });
-      }
-    }
+  } catch (error) {
+    console.error(chalk.red('❌ Error in clearCommand:'), error);
+    await sock.sendMessage(chatId, { text: '❌ An error occurred while clearing messages.' });
   }
-};
+}

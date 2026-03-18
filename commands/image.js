@@ -1,4 +1,3 @@
-// ==================== commands/img.js ====================
 import axios from 'axios';
 
 export default {
@@ -12,7 +11,6 @@ export default {
     try {
       let prompt = '';
 
-      // ================== GET TEXT (message or reply) ==================
       if (m.quoted?.message) {
         const msg = m.quoted.message;
         prompt =
@@ -33,7 +31,6 @@ export default {
         );
       }
 
-      // ⏳ Reaction (processing)
       await sock.sendMessage(m.chat, { text: '🎨 Generating your image... Please wait.' }, { quoted: m });
 
       // ================== API IMAGE GENERATION ==================
@@ -43,9 +40,9 @@ export default {
         { responseType: 'arraybuffer' }
       );
 
-      const imageBuffer = Buffer.from(response.data);
+      // ✅ Convertir correctement le buffer
+      const imageBuffer = Buffer.from(response.data, "binary"); // <-- correction clé
 
-      // ================== SEND IMAGE ==================
       await sock.sendMessage(m.chat, {
         image: imageBuffer,
         caption: `🎨 Generated image for prompt: "${prompt}"`
@@ -62,7 +59,6 @@ export default {
   }
 };
 
-// ================== FUNCTION TO ENHANCE PROMPT ==================
 function enhancePrompt(prompt) {
   const qualityEnhancers = [
     'high quality', 'detailed', 'masterpiece', 'best quality', 'ultra realistic',

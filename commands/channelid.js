@@ -4,7 +4,7 @@ import { contextInfo } from '../system/contextInfo.js';
 export default {
   name: 'channelid',
   description: 'Get WhatsApp Channel ID from channel link',
-  category: 'Groupe',
+  category: 'General',
 
   async execute(Kaya, m, args) {
     try {

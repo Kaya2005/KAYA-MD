@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 import { contextInfo } from '../system/contextInfo.js';
 import checkAdminOrOwner from '../system/checkAdmin.js';
 import { buildWelcomeMessage } from '../system/welcomeTemplate.js';
-import { BOT_NAME } from '../system/botAssets.js';
+import { BOT_NAME, getBotName, BOT_VERSION } from '../system/botAssets.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -158,11 +158,23 @@ export default {
           date
         });
 
+        const externalAdReply = {
+          title: `WELCOME TO ${metadata.subject}`,
+          body: `Powered by ${getBotName()} • v${BOT_VERSION}`,
+          mediaType: 1,
+          renderLargerThumbnail: true,
+          showAdAttribution: true
+        };
+
         await sock.sendMessage(chatId, {
           image: { url: ppUrl },
           caption: welcomeText,
           mentions: [userJid],
-          contextInfo: { ...contextInfo, mentionedJid: [userJid] }
+          contextInfo: {
+            ...contextInfo,
+            mentionedJid: [userJid],
+            externalAdReply
+          }
         });
 
         await new Promise(r => setTimeout(r, 500));
