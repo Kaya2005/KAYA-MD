@@ -11,7 +11,7 @@ const userConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
 /* ================= NORMALISATION ================= */
 global.SESSION_ID = userConfig.SESSION_ID;
 global.owner = userConfig.OWNERS || [];
-global.prefix = userConfig.PREFIX;
+global.PREFIX = userConfig.PREFIX; // 🔥 IMPORTANT FIX
 
 /* ================= EXPORT ================= */
 export default userConfig;
