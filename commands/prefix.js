@@ -7,11 +7,13 @@ export default {
   category: "Owner",
   ownerOnly: true,
 
-  async execute(sock, m, args) {
+  run: async (sock, m, args) => {
     try {
 
+      const action = args[0]?.toLowerCase();
+
       /* ================= SHOW PREFIX ================= */
-      if (!args[0]) {
+      if (!action) {
         return sock.sendMessage(
           m.chat,
           {
@@ -20,7 +22,8 @@ export default {
 ━━━━━━━━━━━━━━━━━━
 ➡️ Prefix: \`${global.PREFIX || config.PREFIX}\`
 
-💡 Example: ${global.PREFIX || config.PREFIX}prefix !
+💡 Example:
+${global.PREFIX || config.PREFIX}prefix !
             `.trim(),
             contextInfo: getContextInfo()
           },
@@ -28,7 +31,8 @@ export default {
         );
       }
 
-      const newPrefix = args[0].trim();
+      /* ================= SET PREFIX ================= */
+      const newPrefix = args[0];
 
       if (!newPrefix) {
         return sock.sendMessage(
@@ -41,10 +45,8 @@ export default {
         );
       }
 
-      /* ================= SAVE ================= */
       saveConfig({ PREFIX: newPrefix });
 
-      /* ================= SYNC GLOBAL ================= */
       global.PREFIX = newPrefix;
       config.PREFIX = newPrefix;
 
