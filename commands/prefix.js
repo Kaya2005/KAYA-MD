@@ -1,26 +1,26 @@
-import config, { saveConfig } from "../config.js";
-import { getContextInfo } from "../system/contextInfo.js";
+import config, { saveConfig } from '../config.js';
+import { getContextInfo } from '../system/contextInfo.js';
 
 export default {
-  name: "prefix",
-  description: "Change or display bot prefix",
-  category: "Owner",
+  name: 'prefix',
+  description: 'Change or display bot prefix',
+  category: 'Owner',
   ownerOnly: true,
 
-  run: async (sock, m, args) => {
+  run: async (kaya, m, args) => {
     try {
 
       const action = args[0]?.toLowerCase();
 
-      /* ================= SHOW PREFIX ================= */
+      // ================= SHOW PREFIX =================
       if (!action) {
-        return sock.sendMessage(
+        return kaya.sendMessage(
           m.chat,
           {
             text: `
-🔧 *CURRENT PREFIX*
-━━━━━━━━━━━━━━━━━━
-➡️ Prefix: \`${global.PREFIX || config.PREFIX}\`
+🔧 CURRENT PREFIX
+━━━━━━━━━━━━━━
+➡️ Prefix: ${global.PREFIX || config.PREFIX}
 
 💡 Example:
 ${global.PREFIX || config.PREFIX}prefix !
@@ -31,32 +31,44 @@ ${global.PREFIX || config.PREFIX}prefix !
         );
       }
 
-      /* ================= SET PREFIX ================= */
+      // ================= SET PREFIX =================
       const newPrefix = args[0];
 
       if (!newPrefix) {
-        return sock.sendMessage(
+        return kaya.sendMessage(
           m.chat,
           {
-            text: "❌ Invalid prefix.",
+            text: '❌ Invalid prefix.',
             contextInfo: getContextInfo()
           },
           { quoted: m }
         );
       }
 
-      saveConfig({ PREFIX: newPrefix });
+      // optional safety
+      if (newPrefix.length > 3) {
+        return kaya.sendMessage(
+          m.chat,
+          {
+            text: '❌ Prefix too long (max 3 characters).',
+            contextInfo: getContextInfo()
+          },
+          { quoted: m }
+        );
+      }
 
+      // ================= SAVE =================
       global.PREFIX = newPrefix;
       config.PREFIX = newPrefix;
+      saveConfig({ PREFIX: newPrefix });
 
-      return sock.sendMessage(
+      return kaya.sendMessage(
         m.chat,
         {
           text: `
-✅ *PREFIX UPDATED*
-━━━━━━━━━━━━━━━━━━
-➡️ New prefix: \`${newPrefix}\`
+✅ PREFIX UPDATED
+━━━━━━━━━━━━━━
+➡️ New prefix: ${newPrefix}
           `.trim(),
           contextInfo: getContextInfo()
         },
@@ -64,12 +76,12 @@ ${global.PREFIX || config.PREFIX}prefix !
       );
 
     } catch (err) {
-      console.error("❌ prefix error:", err);
+      console.error('❌ prefix.js error:', err);
 
-      return sock.sendMessage(
+      return kaya.sendMessage(
         m.chat,
         {
-          text: "❌ Error while changing prefix.",
+          text: '❌ An error occurred.',
           contextInfo: getContextInfo()
         },
         { quoted: m }
