@@ -12,22 +12,14 @@ import { buildMediaLinkMessage } from '../system/mediaMessageTemplate.js';
 export default {
 
   name: 'url',
-
   alias: ['catbox', 'upload', 'link'],
-
   description: '🔗 Génère un lien Catbox depuis un média',
-
   category: 'image',
-
   usage: '<reply média>',
 
   async execute(sock, m, args) {
 
     try {
-
-      // ====================================
-      // MESSAGE + QUOTED
-      // ====================================
 
       const current = m.message || {};
 
@@ -86,10 +78,9 @@ pour générer un lien.`
         );
       }
 
-      // PRESENCE
       await sock.sendPresenceUpdate('composing', m.chat);
 
-      // DOWNLOAD
+      // DOWNLOAD MEDIA
       const stream = await downloadContentFromMessage(mediaMessage, mediaType);
       const chunks = [];
 
@@ -99,11 +90,12 @@ pour générer un lien.`
 
       const buffer = Buffer.concat(chunks);
 
-      if (!buffer || buffer.length === 0) {
-        throw new Error('Impossible de télécharger le média');
+      // ❌ FIX IMPORTANT
+      if (!buffer || buffer.length < 100) {
+        throw new Error('Média invalide ou téléchargement échoué');
       }
 
-      // MIME
+      // MIME TYPE
       let mimetype = mediaMessage?.mimetype || '';
 
       if (mediaType === 'image' && !mimetype) {
@@ -132,7 +124,7 @@ pour générer un lien.`
       const tempPath = path.join(os.tmpdir(), `catbox_${Date.now()}.${ext}`);
       fs.writeFileSync(tempPath, buffer);
 
-      // UPLOAD
+      // UPLOAD CATBOX
       const form = new FormData();
       form.append('reqtype', 'fileupload');
       form.append('fileToUpload', fs.createReadStream(tempPath));
@@ -141,13 +133,17 @@ pour générer un lien.`
         'https://catbox.moe/user/api.php',
         form,
         {
-          headers: form.getHeaders(),
+          headers: {
+            ...form.getHeaders(),
+            'User-Agent': 'Mozilla/5.0'
+          },
           maxBodyLength: Infinity,
           maxContentLength: Infinity,
           timeout: 120000
         }
       );
 
+      // CLEAN TEMP FILE
       try {
         fs.unlinkSync(tempPath);
       } catch {}
@@ -155,7 +151,7 @@ pour générer un lien.`
       const url = String(response.data).trim();
 
       if (!url.startsWith('https://')) {
-        throw new Error('Lien invalide');
+        throw new Error('Lien invalide Catbox');
       }
 
       await sock.sendMessage(
@@ -182,6 +178,10 @@ pour générer un lien.`
 
       else if (err.response?.status === 413) {
         msg = `❌ *${BOT_NAME}*\n\nFichier trop volumineux (>20MB).`;
+      }
+
+      else if (err.message.includes('Média invalide')) {
+        msg = `❌ *${BOT_NAME}*\n\nImpossible de lire ce média (viewOnce ou fichier corrompu).`;
       }
 
       await sock.sendMessage(
