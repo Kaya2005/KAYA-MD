@@ -1,4 +1,4 @@
-import config from '../config.js';
+import config, { saveConfig } from '../config.js';
 import { getContextInfo } from '../system/contextInfo.js';
 
 export default {
@@ -54,9 +54,10 @@ ${global.PREFIX || config.PREFIX}prefix !
         );
       }
 
-      // ================= UPDATE =================
-      global.PREFIX = newPrefix;
-      config.PREFIX = newPrefix;
+      // ================= SAVE =================
+      saveConfig({
+        PREFIX: newPrefix
+      });
 
       return sock.sendMessage(
         m.chat,
@@ -66,7 +67,6 @@ ${global.PREFIX || config.PREFIX}prefix !
 ━━━━━━━━━━━━━━
 ➡️ New prefix: ${newPrefix}
 
-⚠️ Ce changement est temporaire jusqu'au redémarrage du bot.
           `.trim(),
           contextInfo: getContextInfo()
         },
@@ -79,7 +79,7 @@ ${global.PREFIX || config.PREFIX}prefix !
       return sock.sendMessage(
         m.chat,
         {
-          text: '❌ An error occurred.',
+          text: '❌ Une erreur est survenue.',
           contextInfo: getContextInfo()
         },
         { quoted: m }
