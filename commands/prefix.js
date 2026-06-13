@@ -1,14 +1,16 @@
-import config, { saveConfig } from '../config.js';
-import { getContextInfo } from '../system/contextInfo.js';
+import config, { saveConfig } from "../config.js";
+import { getContextInfo } from "../system/contextInfo.js";
 
 export default {
-  name: 'prefix',
-  description: 'Change or display the bot prefix (KAYA-MD)',
-  category: 'Owner',
+  name: "prefix",
+  description: "Change or display bot prefix",
+  category: "Owner",
   ownerOnly: true,
 
   run: async (sock, m, args) => {
     try {
+
+      /* ================= SHOW PREFIX ================= */
       if (!args[0]) {
         return sock.sendMessage(
           m.chat,
@@ -26,13 +28,14 @@ export default {
         );
       }
 
-      const newPrefix = args.join(' ');
+      const newPrefix = args[0]; // ⚡ FIX: pas join(' ')
 
-      // 💾 Save
+      /* ================= SAVE ================= */
       saveConfig({ PREFIX: newPrefix });
 
-      // ⚡ Instant update
+      /* ================= SYNC ================= */
       global.PREFIX = newPrefix;
+      config.PREFIX = newPrefix;
 
       return sock.sendMessage(
         m.chat,
@@ -48,12 +51,12 @@ export default {
       );
 
     } catch (err) {
-      console.error('❌ prefix error:', err);
+      console.error("❌ prefix error:", err);
 
       return sock.sendMessage(
         m.chat,
         {
-          text: '❌ Error while changing prefix.',
+          text: "❌ Error while changing prefix.",
           contextInfo: getContextInfo()
         },
         { quoted: m }
