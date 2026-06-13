@@ -1,4 +1,4 @@
-import config, { saveConfig } from '../config.js';
+import config from '../config.js';
 import { getContextInfo } from '../system/contextInfo.js';
 
 export default {
@@ -7,14 +7,12 @@ export default {
   category: 'Owner',
   ownerOnly: true,
 
-  run: async (kaya, m, args) => {
+  run: async (sock, m, args) => {
     try {
 
-      const action = args[0]?.toLowerCase();
-
       // ================= SHOW PREFIX =================
-      if (!action) {
-        return kaya.sendMessage(
+      if (!args[0]) {
+        return sock.sendMessage(
           m.chat,
           {
             text: `
@@ -32,10 +30,10 @@ ${global.PREFIX || config.PREFIX}prefix !
       }
 
       // ================= SET PREFIX =================
-      const newPrefix = args[0];
+      const newPrefix = args[0].trim();
 
       if (!newPrefix) {
-        return kaya.sendMessage(
+        return sock.sendMessage(
           m.chat,
           {
             text: '❌ Invalid prefix.',
@@ -45,9 +43,8 @@ ${global.PREFIX || config.PREFIX}prefix !
         );
       }
 
-      // optional safety
       if (newPrefix.length > 3) {
-        return kaya.sendMessage(
+        return sock.sendMessage(
           m.chat,
           {
             text: '❌ Prefix too long (max 3 characters).',
@@ -57,18 +54,19 @@ ${global.PREFIX || config.PREFIX}prefix !
         );
       }
 
-      // ================= SAVE =================
+      // ================= UPDATE =================
       global.PREFIX = newPrefix;
       config.PREFIX = newPrefix;
-      saveConfig({ PREFIX: newPrefix });
 
-      return kaya.sendMessage(
+      return sock.sendMessage(
         m.chat,
         {
           text: `
 ✅ PREFIX UPDATED
 ━━━━━━━━━━━━━━
 ➡️ New prefix: ${newPrefix}
+
+⚠️ Ce changement est temporaire jusqu'au redémarrage du bot.
           `.trim(),
           contextInfo: getContextInfo()
         },
@@ -78,7 +76,7 @@ ${global.PREFIX || config.PREFIX}prefix !
     } catch (err) {
       console.error('❌ prefix.js error:', err);
 
-      return kaya.sendMessage(
+      return sock.sendMessage(
         m.chat,
         {
           text: '❌ An error occurred.',
