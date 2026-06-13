@@ -84,7 +84,7 @@ async function loadSessionFromBase64() {
       Buffer.from(base64, 'base64')
     );
 
-    console.log(chalk.green('KAYA BOT CONNECTED✅️');
+    console.log(chalk.green('KAYA BOT CONNECTED');
   } catch (e) {
     console.error('Erreur session :', e);
   }
