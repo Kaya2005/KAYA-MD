@@ -7,7 +7,7 @@ export default {
   category: "Owner",
   ownerOnly: true,
 
-  run: async (sock, m, args) => {
+  async execute(sock, m, args) {
     try {
 
       /* ================= SHOW PREFIX ================= */
@@ -20,7 +20,7 @@ export default {
 ━━━━━━━━━━━━━━━━━━
 ➡️ Prefix: \`${global.PREFIX || config.PREFIX}\`
 
-💡 Example: .prefix !
+💡 Example: ${global.PREFIX || config.PREFIX}prefix !
             `.trim(),
             contextInfo: getContextInfo()
           },
@@ -28,12 +28,23 @@ export default {
         );
       }
 
-      const newPrefix = args[0]; // ⚡ FIX: pas join(' ')
+      const newPrefix = args[0].trim();
+
+      if (!newPrefix) {
+        return sock.sendMessage(
+          m.chat,
+          {
+            text: "❌ Invalid prefix.",
+            contextInfo: getContextInfo()
+          },
+          { quoted: m }
+        );
+      }
 
       /* ================= SAVE ================= */
       saveConfig({ PREFIX: newPrefix });
 
-      /* ================= SYNC ================= */
+      /* ================= SYNC GLOBAL ================= */
       global.PREFIX = newPrefix;
       config.PREFIX = newPrefix;
 
