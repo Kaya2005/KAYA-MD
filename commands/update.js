@@ -6,7 +6,11 @@ const REPO_DIR = process.cwd();
 /* ================= GIT ================= */
 function getLocalCommit() {
   try {
-    return execSync(`git -C ${REPO_DIR} rev-parse HEAD`).toString().trim();
+    return execSync(
+      `git -C ${REPO_DIR} log -1 --pretty=format:"%h|%s|%cr"`
+    )
+      .toString()
+      .trim();
   } catch {
     return null;
   }
@@ -24,80 +28,130 @@ function getRemoteCommit() {
   }
 }
 
-/* ================= BAR ================= */
+function getChangedFiles() {
+  try {
+    return execSync(
+      `git -C ${REPO_DIR} diff --name-only HEAD@{1} HEAD`
+    )
+      .toString()
+      .trim()
+      .split("\n")
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+/* ================= PROGRESS BAR ================= */
 function bar(p) {
   const total = 10;
   const filled = Math.round((p / 100) * total);
   return "▰".repeat(filled) + "▱".repeat(total - filled) + ` ${p}%`;
 }
 
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/* ================= UPDATE ================= */
+/* ================= UPDATE COMMAND ================= */
 export default {
   name: "update",
-  description: "Live update bot",
+  description: "Live bot update with details",
   category: "System",
+  ownerOnly: true,
 
-  async execute(Kaya, m, args) {
+  async execute(Kaya, m) {
     try {
-
+      /* ================= OWNER CHECK ================= */
       if (!m.fromMe) {
-        return Kaya.sendMessage(m.chat, {
-          text: "❌ Owner only",
-          contextInfo: getContextInfo()
-        }, { quoted: m });
+        return Kaya.sendMessage(
+          m.chat,
+          {
+            text: "❌ Owner only",
+            contextInfo: getContextInfo(),
+          },
+          { quoted: m }
+        );
       }
 
-      // 🔥 1. send initial message
-      let msg = await Kaya.sendMessage(m.chat, {
-        text: `🔄 Update en cours...\n${bar(5)}`,
-        contextInfo: getContextInfo()
-      }, { quoted: m });
+      const localBefore = getLocalCommit();
+
+      /* ================= INIT MESSAGE ================= */
+      let msg = await Kaya.sendMessage(
+        m.chat,
+        {
+          text: `🔄 Mise à jour en cours...\n${bar(5)}`,
+          contextInfo: getContextInfo(),
+        },
+        { quoted: m }
+      );
 
       const edit = async (text) => {
         await Kaya.sendMessage(m.chat, {
           text,
-          edit: msg.key
+          edit: msg.key,
         });
       };
 
-      const local = getLocalCommit();
+      /* ================= CHECK ================= */
+      await sleep(400);
+      await edit(`🔍 Vérification updates...\n${bar(20)}`);
+
+      execSync(`git -C ${REPO_DIR} fetch`, { stdio: "ignore" });
+
       const remote = getRemoteCommit();
 
-      if (local === remote) {
-        return edit(`📦 Déjà à jour\n${bar(100)}`);
+      if (!remote) {
+        return edit("❌ Impossible de vérifier les updates");
       }
 
-      await sleep(500);
-      await edit(`🔍 Vérification...\n${bar(15)}`);
-
-      await sleep(600);
+      await sleep(400);
       await edit(`⬇️ Téléchargement...\n${bar(40)}`);
 
-      execSync(`git -C ${REPO_DIR} reset --hard`, { stdio: "inherit" });
-      execSync(`git -C ${REPO_DIR} pull`, { stdio: "inherit" });
+      /* ================= UPDATE ================= */
+      execSync(`git -C ${REPO_DIR} reset --hard`, {
+        stdio: "inherit",
+      });
 
-      await sleep(600);
-      await edit(`⚙️ Installation...\n${bar(75)}`);
+      execSync(`git -C ${REPO_DIR} pull`, {
+        stdio: "inherit",
+      });
 
-      await sleep(600);
-      await edit(`🚀 Finalisation...\n${bar(95)}`);
+      /* ================= ANALYSE ================= */
+      await sleep(400);
+      await edit(`⚙️ Analyse des changements...\n${bar(70)}`);
 
-      await sleep(600);
-      await edit(`✅ Update terminé\n${bar(100)}\n♻️ Redémarrage...`);
+      const changed = getChangedFiles();
+      const localAfter = getLocalCommit();
 
-      process.exit(0);
+      /* ================= RESULT ================= */
+      await sleep(400);
+      await edit(
+        `🚀 UPDATE TERMINÉ\n${bar(100)}\n\n` +
+          `📌 Commit actuel:\n${localAfter || "N/A"}\n\n` +
+          `📂 Fichiers modifiés: ${changed.length}\n` +
+          changed
+            .slice(0, 8)
+            .map((f) => `• ${f}`)
+            .join("\n") +
+          `\n\n♻️ Redémarrage du bot...`
+      );
 
+      /* ================= RESTART ================= */
+      setTimeout(() => {
+        process.exit(0);
+      }, 1500);
     } catch (e) {
-      console.error(e);
+      console.error("UPDATE ERROR:", e);
 
       try {
-        await Kaya.sendMessage(m.chat, {
-          text: "❌ Update failed",
-          contextInfo: getContextInfo()
-        }, { quoted: m });
+        await Kaya.sendMessage(
+          m.chat,
+          {
+            text: "❌ Update failed",
+            contextInfo: getContextInfo(),
+          },
+          { quoted: m }
+        );
       } catch {}
     }
-  }
+  },
 };
