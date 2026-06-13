@@ -4,15 +4,14 @@ import { buildRepoMessage } from '../system/repoTemplate.js';
 export default {
   name: 'repo',
   aliases: ['github', 'source', 'code'],
-  description: 'Show bot repository information',
   category: 'General',
+  description: 'Show bot repository information',
 
-  async execute(kaya, m) {
-
+  async execute(Kaya, m) {
     const botName = getBotName();
 
     const repoText =
-`╭━━━〔 *${botName} INFO* 〕━━━⬣
+`╭━━━〔 🤖 *${botName} INFO* 〕━━━⬣
 
 📦 *Repository*
 🔗 https://github.com/kaya-md/KAYA-BOT
@@ -22,21 +21,34 @@ export default {
 
 🚀 *Free Deployment Server*
 ✔ Katabump Panel (Free Hosting)
-
 🔗 https://dashboard.katabump.com/auth/login#483bf6
 
 ╰━━━━━━━━━━━━━━━━━━━━⬣`;
 
-    await sendWithBotImage(
-      kaya,
-      m.chat,
-      {
-        caption: repoText + "\n\n" + buildRepoMessage(),
-        contextInfo: {
-          mentionedJid: [m.sender]
-        }
-      },
-      { quoted: m }
-    );
+    try {
+      await sendWithBotImage(
+        Kaya,
+        m.chat,
+        {
+          caption: repoText + "\n\n" + buildRepoMessage(),
+          contextInfo: {
+            mentionedJid: [m.sender]
+          }
+        },
+        { quoted: m }
+      );
+
+    } catch (err) {
+      console.log('❌ REPO COMMAND ERROR:', err);
+
+      // fallback si image système casse
+      await Kaya.sendMessage(
+        m.chat,
+        {
+          text: repoText + "\n\n" + buildRepoMessage()
+        },
+        { quoted: m }
+      );
+    }
   }
 };
