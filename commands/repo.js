@@ -1,5 +1,6 @@
 import { sendWithBotImage, getBotName } from '../system/botAssets.js';
 import { buildRepoMessage } from '../system/repoTemplate.js';
+import { getContextInfo } from '../system/contextInfo.js';
 
 export default {
   name: 'repo',
@@ -7,10 +8,12 @@ export default {
   category: 'General',
   description: 'Show bot repository information',
 
-  async execute(Kaya, m) {
-    const botName = getBotName();
+  run: async (sock, m, args) => {
 
-    const repoText =
+    try {
+      const botName = getBotName();
+
+      const repoText =
 `╭━━━〔 🤖 *${botName} INFO* 〕━━━⬣
 
 📦 *Repository*
@@ -21,31 +24,28 @@ export default {
 
 🚀 *Free Deployment Server*
 ✔ Katabump Panel (Free Hosting)
+
 🔗 https://dashboard.katabump.com/auth/login#483bf6
 
 ╰━━━━━━━━━━━━━━━━━━━━⬣`;
 
-    try {
       await sendWithBotImage(
-        Kaya,
+        sock,
         m.chat,
         {
           caption: repoText + "\n\n" + buildRepoMessage(),
-          contextInfo: {
-            mentionedJid: [m.sender]
-          }
+          contextInfo: getContextInfo()
         },
         { quoted: m }
       );
 
     } catch (err) {
-      console.log('❌ REPO COMMAND ERROR:', err);
+      console.log('❌ REPO ERROR:', err);
 
-      // fallback si image système casse
-      await Kaya.sendMessage(
+      return sock.sendMessage(
         m.chat,
         {
-          text: repoText + "\n\n" + buildRepoMessage()
+          text: '❌ Repo command error.'
         },
         { quoted: m }
       );
