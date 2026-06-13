@@ -4,9 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-import {
-  downloadContentFromMessage
-} from '@whiskeysockets/baileys';
+import { downloadContentFromMessage } from '@whiskeysockets/baileys';
 
 import { BOT_NAME } from '../system/botAssets.js';
 import { buildMediaLinkMessage } from '../system/mediaMessageTemplate.js';
@@ -15,113 +13,64 @@ export default {
 
   name: 'url',
 
-  alias: [
-    'catbox',
-    'upload',
-    'link'
-  ],
+  alias: ['catbox', 'upload', 'link'],
 
-  description:
-    '🔗 Génère un lien Catbox depuis un média',
+  description: '🔗 Génère un lien Catbox depuis un média',
 
   category: 'image',
 
-  usage:
-    '<reply média>',
+  usage: '<reply média>',
 
-  async execute(
-    sock,
-    m,
-    args
-  ) {
+  async execute(sock, m, args) {
 
     try {
 
       // ====================================
-      // QUOTED MESSAGE
+      // MESSAGE + QUOTED
       // ====================================
+
+      const current = m.message || {};
 
       const quoted =
-        m.message
-          ?.extendedTextMessage
-          ?.contextInfo
-          ?.quotedMessage;
-
-      // ====================================
-      // TYPES SUPPORTÉS
-      // ====================================
+        current?.extendedTextMessage?.contextInfo?.quotedMessage || null;
 
       const mediaTypes = {
-
         imageMessage: 'image',
-
         videoMessage: 'video',
-
         audioMessage: 'audio',
-
-        stickerMessage: 'sticker',
-
+        stickerMessage: 'image',
         documentMessage: 'document'
       };
 
-      let mediaMessage;
-      let mediaType;
+      let mediaMessage = null;
+      let mediaType = null;
 
-      // ====================================
-      // CHECK QUOTED MEDIA
-      // ====================================
+      // DIRECT MEDIA
+      for (const key of Object.keys(mediaTypes)) {
+        if (current[key]) {
+          mediaMessage = current[key];
+          mediaType = mediaTypes[key];
+          break;
+        }
+      }
 
-      if (quoted) {
-
-        for (const key in mediaTypes) {
-
+      // QUOTED MEDIA
+      if (!mediaMessage && quoted) {
+        for (const key of Object.keys(mediaTypes)) {
           if (quoted[key]) {
-
-            mediaMessage =
-              quoted[key];
-
-            mediaType =
-              mediaTypes[key];
-
+            mediaMessage = quoted[key];
+            mediaType = mediaTypes[key];
             break;
           }
         }
       }
 
-      // ====================================
-      // CHECK DIRECT MEDIA
-      // ====================================
-
-      if (!mediaMessage) {
-
-        for (const key in mediaTypes) {
-
-          if (m.message?.[key]) {
-
-            mediaMessage =
-              m.message[key];
-
-            mediaType =
-              mediaTypes[key];
-
-            break;
-          }
-        }
-      }
-
-      // ====================================
       // NO MEDIA
-      // ====================================
-
       if (!mediaMessage) {
-
         return sock.sendMessage(
-
           m.chat,
-
           {
-            text:
-`📸 *${BOT_NAME}*
+            text: `📸 *${BOT_NAME}*
 
 Réponds à :
 
@@ -131,347 +80,114 @@ Réponds à :
 • sticker
 • document
 
-pour générer un lien Catbox.`
+pour générer un lien.`
           },
-
-          {
-            quoted: m
-          }
+          { quoted: m }
         );
       }
 
-      // ====================================
       // PRESENCE
-      // ====================================
+      await sock.sendPresenceUpdate('composing', m.chat);
 
-      await sock.sendPresenceUpdate(
-        'composing',
-        m.chat
-      );
-
-      // ====================================
-      // DOWNLOAD TYPE
-      // ====================================
-
-      const downloadType =
-        mediaType === 'sticker'
-          ? 'image'
-          : mediaType;
-
-      // ====================================
-      // DOWNLOAD MEDIA
-      // ====================================
-
-      const stream =
-        await downloadContentFromMessage(
-          mediaMessage,
-          downloadType
-        );
-
+      // DOWNLOAD
+      const stream = await downloadContentFromMessage(mediaMessage, mediaType);
       const chunks = [];
 
-      for await (
-        const chunk of stream
-      ) {
-
+      for await (const chunk of stream) {
         chunks.push(chunk);
       }
 
-      const buffer =
-        Buffer.concat(chunks);
+      const buffer = Buffer.concat(chunks);
 
-      // ====================================
-      // BUFFER CHECK
-      // ====================================
-
-      if (
-
-        !buffer ||
-
-        buffer.length < 10
-
-      ) {
-
-        return sock.sendMessage(
-
-          m.chat,
-
-          {
-            text:
-`❌ *${BOT_NAME}*
-
-Impossible de lire ce média.`
-          },
-
-          {
-            quoted: m
-          }
-        );
+      if (!buffer || buffer.length === 0) {
+        throw new Error('Impossible de télécharger le média');
       }
 
-      // ====================================
-      // MIME TYPE
-      // ====================================
+      // MIME
+      let mimetype = mediaMessage?.mimetype || '';
 
-      let mimetype =
-        mediaMessage?.mimetype ||
-        '';
-
-      // fallback sticker
-      if (
-        mediaType === 'sticker' &&
-        !mimetype
-      ) {
-
-        mimetype = 'image/webp';
+      if (mediaType === 'image' && !mimetype) {
+        mimetype = 'image/jpeg';
       }
 
-      // ====================================
+      if (mediaType === 'document' && !mimetype) {
+        mimetype = 'application/octet-stream';
+      }
+
       // EXTENSION
-      // ====================================
-
       let ext = 'bin';
 
-      if (
-        mimetype.includes('png')
-      ) ext = 'png';
+      if (mimetype.includes('png')) ext = 'png';
+      else if (mimetype.includes('jpeg')) ext = 'jpg';
+      else if (mimetype.includes('jpg')) ext = 'jpg';
+      else if (mimetype.includes('webp')) ext = 'webp';
+      else if (mimetype.includes('gif')) ext = 'gif';
+      else if (mimetype.includes('mp4')) ext = 'mp4';
+      else if (mimetype.includes('webm')) ext = 'webm';
+      else if (mimetype.includes('ogg')) ext = 'ogg';
+      else if (mimetype.includes('mpeg') || mimetype.includes('mp3')) ext = 'mp3';
+      else if (mimetype.includes('pdf')) ext = 'pdf';
 
-      else if (
-        mimetype.includes('jpeg')
-      ) ext = 'jpg';
-
-      else if (
-        mimetype.includes('jpg')
-      ) ext = 'jpg';
-
-      else if (
-        mimetype.includes('webp')
-      ) ext = 'webp';
-
-      else if (
-        mimetype.includes('gif')
-      ) ext = 'gif';
-
-      else if (
-        mimetype.includes('mp4')
-      ) ext = 'mp4';
-
-      else if (
-        mimetype.includes('webm')
-      ) ext = 'webm';
-
-      else if (
-        mimetype.includes('ogg')
-      ) ext = 'ogg';
-
-      else if (
-        mimetype.includes('mpeg')
-      ) ext = 'mp3';
-
-      else if (
-        mimetype.includes('mp3')
-      ) ext = 'mp3';
-
-      else if (
-        mimetype.includes('pdf')
-      ) ext = 'pdf';
-
-      // ====================================
       // TEMP FILE
-      // ====================================
+      const tempPath = path.join(os.tmpdir(), `catbox_${Date.now()}.${ext}`);
+      fs.writeFileSync(tempPath, buffer);
 
-      const tempPath = path.join(
+      // UPLOAD
+      const form = new FormData();
+      form.append('reqtype', 'fileupload');
+      form.append('fileToUpload', fs.createReadStream(tempPath));
 
-        os.tmpdir(),
-
-        `catbox_${Date.now()}.${ext}`
+      const response = await axios.post(
+        'https://catbox.moe/user/api.php',
+        form,
+        {
+          headers: form.getHeaders(),
+          maxBodyLength: Infinity,
+          maxContentLength: Infinity,
+          timeout: 120000
+        }
       );
-
-      fs.writeFileSync(
-        tempPath,
-        buffer
-      );
-
-      // ====================================
-      // FORM DATA
-      // ====================================
-
-      const form =
-        new FormData();
-
-      form.append(
-        'reqtype',
-        'fileupload'
-      );
-
-      form.append(
-        'fileToUpload',
-        fs.createReadStream(
-          tempPath
-        )
-      );
-
-      // ====================================
-      // UPLOAD CATBOX
-      // ====================================
-
-      const response =
-        await axios.post(
-
-          'https://catbox.moe/user/api.php',
-
-          form,
-
-          {
-
-            headers:
-              form.getHeaders(),
-
-            maxBodyLength:
-              Infinity,
-
-            maxContentLength:
-              Infinity,
-
-            timeout:
-              120000
-          }
-        );
-
-      // ====================================
-      // DELETE TEMP FILE
-      // ====================================
 
       try {
-
-        fs.unlinkSync(
-          tempPath
-        );
-
+        fs.unlinkSync(tempPath);
       } catch {}
 
-      // ====================================
-      // URL
-      // ====================================
+      const url = String(response.data).trim();
 
-      const url =
-        String(
-          response.data
-        ).trim();
-
-      // ====================================
-      // INVALID URL
-      // ====================================
-
-      if (
-
-        !url ||
-
-        !url.startsWith(
-          'https://'
-        )
-
-      ) {
-
-        console.log(
-          'Catbox response:',
-          response.data
-        );
-
-        throw new Error(
-          'Lien invalide'
-        );
+      if (!url.startsWith('https://')) {
+        throw new Error('Lien invalide');
       }
 
-      // ====================================
-      // SEND RESULT
-      // ====================================
-
       await sock.sendMessage(
-
         m.chat,
-
         {
-          text:
-            buildMediaLinkMessage(
-              url
-            )
+          text: buildMediaLinkMessage(url)
         },
-
-        {
-          quoted: m
-        }
+        { quoted: m }
       );
 
     } catch (err) {
 
-      console.error(
-        '❌ URL command error:',
-        err?.response?.data || err
-      );
+      console.error('❌ URL command error:', err?.response?.data || err);
 
-      let msg =
-`❌ *${BOT_NAME}*
-
-Erreur upload média.`;
-
-      // ====================================
-      // TIMEOUT
-      // ====================================
+      let msg = `❌ *${BOT_NAME}*\n\nErreur upload média.`;
 
       if (
-
-        err.code ===
-          'ECONNABORTED'
-
-        ||
-
-        err.code ===
-          'ETIMEDOUT'
-
-        ||
-
-        err.code ===
-          'ECONNREFUSED'
-
+        err.code === 'ECONNABORTED' ||
+        err.code === 'ETIMEDOUT' ||
+        err.code === 'ECONNREFUSED'
       ) {
-
-        msg =
-`❌ *${BOT_NAME}*
-
-Catbox indisponible.
-Réessaie plus tard.`;
+        msg = `❌ *${BOT_NAME}*\n\nCatbox indisponible.\nRéessaie plus tard.`;
       }
 
-      // ====================================
-      // TOO LARGE
-      // ====================================
-
-      else if (
-        err.response?.status === 413
-      ) {
-
-        msg =
-`❌ *${BOT_NAME}*
-
-Fichier trop volumineux (>20MB).`;
+      else if (err.response?.status === 413) {
+        msg = `❌ *${BOT_NAME}*\n\nFichier trop volumineux (>20MB).`;
       }
-
-      // ====================================
-      // SEND ERROR
-      // ====================================
 
       await sock.sendMessage(
-
         m.chat,
-
-        {
-          text: msg
-        },
-
-        {
-          quoted: m
-        }
+        { text: msg },
+        { quoted: m }
       );
     }
   }
