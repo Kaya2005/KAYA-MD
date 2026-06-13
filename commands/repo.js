@@ -1,6 +1,6 @@
-import { sendWithBotImage, getBotName } from '../system/botAssets.js';
-import { buildRepoMessage } from '../system/repoTemplate.js';
+import { getBotName } from '../system/botAssets.js';
 import { getContextInfo } from '../system/contextInfo.js';
+import { buildRepoMessage } from '../system/repoTemplate.js';
 
 export default {
   name: 'repo',
@@ -9,12 +9,11 @@ export default {
   description: 'Show bot repository information',
 
   run: async (sock, m, args) => {
-
     try {
       const botName = getBotName();
 
-      const repoText =
-`╭━━━〔 🤖 *${botName} INFO* 〕━━━⬣
+      const repoText = `
+╭━━━〔  *${botName} INFO* 〕━━━⬣
 
 📦 *Repository*
 🔗 https://github.com/kaya-md/KAYA-BOT
@@ -27,13 +26,13 @@ export default {
 
 🔗 https://dashboard.katabump.com/auth/login#483bf6
 
-╰━━━━━━━━━━━━━━━━━━━━⬣`;
+╰━━━━━━━━━━━━━━━━━━━━⬣
+`.trim();
 
-      await sendWithBotImage(
-        sock,
+      await sock.sendMessage(
         m.chat,
         {
-          caption: repoText + "\n\n" + buildRepoMessage(),
+          text: repoText + "\n\n" + buildRepoMessage(),
           contextInfo: getContextInfo()
         },
         { quoted: m }
@@ -42,7 +41,7 @@ export default {
     } catch (err) {
       console.log('❌ REPO ERROR:', err);
 
-      return sock.sendMessage(
+      await sock.sendMessage(
         m.chat,
         {
           text: '❌ Repo command error.'
