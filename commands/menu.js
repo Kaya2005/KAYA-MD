@@ -75,7 +75,6 @@ export default {
       (a, b) => categories[b].length - categories[a].length
     );
 
-    // ===================== BUILD MENU =====================
     let menuList = '';
 
     for (const cat of sortedCats) {
@@ -98,7 +97,7 @@ export default {
       menuList
     });
 
-    // ===================== IMAGE LOGIC =====================
+    // ===================== IMAGE =====================
     let thumbnailBuffer;
     const botImage = getBotImage();
 
@@ -117,7 +116,7 @@ export default {
       }
     }
 
-    // ===================== EXTERNAL AD REPLY =====================
+    // ===================== EXTERNAL AD =====================
     const externalAdReply = {
       title: `WELCOME TO ${getBotName()}`,
       body: `${totalCmds} COMMANDS • v${BOT_VERSION}`,
@@ -127,14 +126,13 @@ export default {
       thumbnail: thumbnailBuffer
     };
 
-    // ===================== FINAL CONTEXT INFO FIX =====================
+    // ===================== FIX ICI =====================
     const contextInfo = {
-      ...baseContextInfo,
+      ...(typeof baseContextInfo === 'function' ? baseContextInfo() : baseContextInfo),
       externalAdReply,
       mentionedJid: [userId]
     };
 
-    // ===================== SEND MENU =====================
     await Kaya.sendMessage(
       m.chat,
       {
