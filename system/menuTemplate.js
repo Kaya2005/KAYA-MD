@@ -38,8 +38,6 @@ export function buildMenuText({
   return `
 ${buildHeader({ user, totalCmds })}
 
-   〘 COMMANDS 〙
-
 ${menuList}
 
 ${BOT_SLOGAN}
@@ -58,11 +56,11 @@ export function buildMenuCategoryText({
 
   return `
 > ╢ ${cat.toUpperCase()} ♰
-╭▰▰▰▰▰▰▰▰▰▰◈
+╭▰▰▰▰▰▰▰◈
 ${cmds
   .filter(Boolean)
-  .map(c => `❏ ${prefix}${c.toLowerCase()}`)
+  .map(c => `┆❏ ${prefix}${c.toLowerCase()}`)
   .join('\n')}
-╰▰▰▰▰▰▰▰▰▰▰◈
+╰▰▰▰▰▰▰▰◈
 `.trim();
 }
