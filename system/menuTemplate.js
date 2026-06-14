@@ -1,7 +1,7 @@
 // ==================== system/menuBuilder.js ====================
 import { BOT_NAME, BOT_SLOGAN } from './botAssets.js';
 
-/* ==================== FORMAT TIME ==================== */
+/* ==================== TIME ==================== */
 function pad(n) {
   return String(n).padStart(2, '0');
 }
@@ -13,20 +13,19 @@ function getTime() {
 
 function getDate() {
   const d = new Date();
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${pad(d.getFullYear())}`;
 }
 
-/* ==================== HEADER FUSIONNÉ ==================== */
+/* ==================== HEADER FUSION NX + STYLE BOT ==================== */
 function buildHeader({ user, totalCmds }) {
   return `
-   ▉ \`${BOT_NAME}\` ▉
-  ▰▰▰▰▰▰▰▰▰▰
- ❱ user   : *${user}*
- ❱ prefix : *${global.PREFIX || ''}*
- ❱ mode   : *${global.privateMode ? 'PRIVATE 🔒' : 'PUBLIC 🌍'}*
- ❱ cmds   : *${totalCmds}*
-  ______________________
-
+▰▰▰▰▰▰▰▰▰▰
+➠ User: *${user}*
+➠ Prefix: *${global.PREFIX || ''}*
+➠ Mode: *${global.privateMode ? 'PRIVATE 🔒' : 'PUBLIC 🌍'}*
+➠ Time: *${getTime()}*
+➠ Date: *${getDate()}*
+______________________
 `.trim();
 }
 
@@ -39,19 +38,31 @@ export function buildMenuText({
   return `
 ${buildHeader({ user, totalCmds })}
 
+   〘 COMMANDS 〙
+
 ${menuList}
- ${BOT_SLOGAN}
+
+${BOT_SLOGAN}
 `.trim();
 }
 
-/* ==================== CATÉGORIE MENU ==================== */
-export function buildMenuCategoryText({ cat, cmds, showPrefix = false }) {
+/* ==================== CATEGORY MENU (FUSION PARFAITE) ==================== */
+export function buildMenuCategoryText({
+  cat,
+  cmds = [],
+  showPrefix = false
+}) {
   const prefix = showPrefix ? (global.PREFIX || '') : '';
+
+  if (!cmds.length) return '';
 
   return `
 > ╢ ${cat.toUpperCase()} ♰
 ╭▰▰▰▰▰▰▰▰▰▰◈
-${cmds.map(c => `┆${prefix}${c.toLowerCase()}`).join('\n')}
+${cmds
+  .filter(Boolean)
+  .map(c => `❏ ${prefix}${c.toLowerCase()}`)
+  .join('\n')}
 ╰▰▰▰▰▰▰▰▰▰▰◈
 `.trim();
 }
