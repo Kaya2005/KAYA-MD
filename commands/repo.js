@@ -2,9 +2,9 @@ import { BOT_NAME, sendWithBotImage } from '../system/botAssets.js';
 
 export default {
   name: 'repo',
-  aliases: ['repository', 'script'],
+  aliases: ['repository', 'script', 'source'],
   category: 'General',
-  description: '📦 Show bot repository information',
+  description: '📦 Show repository links',
   ownerOnly: false,
   group: false,
 
@@ -12,22 +12,19 @@ export default {
     try {
 
       const message = `
-╔═━────────────━═╗
-       ${BOT_NAME}
-╚═━────────────━═╝
-
-📦 *Repository*
-🔗 https://github.com/kaya-md/KAYA-BOT
-
-🧠 *Session ID*
-🔗 https://kaya-session-id.vercel.app
-
-🚀 *Free Deployment Server*
-✔ Katabump Panel (Free Hosting)
-
-🔗 https://dashboard.katabump.com/auth/login#483bf6
-
-══════════════════
+╭─❖「 ${BOT_NAME} 」
+│
+├📦 *Repository*
+│🔗 https://github.com/kaya-md/KAYA-BOT
+│
+├🧠 *Session ID*
+│🔗 https://kaya-session-id.vercel.app
+│
+├🚀 *Free Deployment*
+│✔ Katabump Panel
+│🔗 https://dashboard.katabump.com/auth/login#483bf6
+│
+╰──────────────❖
       `.trim();
 
       await sendWithBotImage(
