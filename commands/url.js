@@ -1,194 +1,78 @@
 import axios from 'axios';
 import FormData from 'form-data';
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
-
 import { downloadContentFromMessage } from '@whiskeysockets/baileys';
+import { BOT_NAME } from './botAssets.js';
 
-import { BOT_NAME } from '../system/botAssets.js';
-import { buildMediaLinkMessage } from '../system/mediaMessageTemplate.js';
+function buildMediaLinkMessage(url, label = 'Image uploaded successfully!') {
+    return `
+╭────「 ${BOT_NAME} 」────⬣
+│ 📤 ${label}
+│ 🔗 Catbox Link:
+│ ${url}
+╰──────────────────⬣`.trim();
+}
 
 export default {
+    name: 'url',
+    alias: ['tourl'],
+    description: 'Upload une image sur Catbox et renvoie son lien',
+    category: 'Tools',
+    usage: '.url (reply à une image)',
 
-  name: 'url',
-  alias: ['catbox', 'upload', 'link'],
-  description: '🔗 Génère un lien Catbox depuis un média',
-  category: 'image',
-  usage: '<reply média>',
+    async execute(sock, m) {
+        try {
+            const quoted = m.message?.extendedTextMessage?.contextInfo?.quotedMessage;
 
-  async execute(sock, m, args) {
+            if (!quoted?.imageMessage) {
+                return sock.sendMessage(
+                    m.chat,
+                    { text: '⚠️ Réponds à une image avec .url' },
+                    { quoted: m }
+                );
+            }
 
-    try {
+            const stream = await downloadContentFromMessage(
+                quoted.imageMessage,
+                'image'
+            );
 
-      const current = m.message || {};
+            const chunks = [];
+            for await (const chunk of stream) {
+                chunks.push(chunk);
+            }
 
-      const quoted =
-        current?.extendedTextMessage?.contextInfo?.quotedMessage || null;
+            const buffer = Buffer.concat(chunks);
 
-      const mediaTypes = {
-        imageMessage: 'image',
-        videoMessage: 'video',
-        audioMessage: 'audio',
-        stickerMessage: 'image',
-        documentMessage: 'document'
-      };
+            const form = new FormData();
+            form.append('reqtype', 'fileupload');
+            form.append('fileToUpload', buffer, 'image.jpg');
 
-      let mediaMessage = null;
-      let mediaType = null;
+            const { data: url } = await axios.post(
+                'https://catbox.moe/user/api.php',
+                form,
+                {
+                    headers: form.getHeaders()
+                }
+            );
 
-      // DIRECT MEDIA
-      for (const key of Object.keys(mediaTypes)) {
-        if (current[key]) {
-          mediaMessage = current[key];
-          mediaType = mediaTypes[key];
-          break;
+            await sock.sendMessage(
+                m.chat,
+                {
+                    text: buildMediaLinkMessage(url)
+                },
+                { quoted: m }
+            );
+
+        } catch (error) {
+            console.error('URL command error:', error);
+
+            await sock.sendMessage(
+                m.chat,
+                {
+                    text: '❌ Failed to upload image.'
+                },
+                { quoted: m }
+            );
         }
-      }
-
-      // QUOTED MEDIA
-      if (!mediaMessage && quoted) {
-        for (const key of Object.keys(mediaTypes)) {
-          if (quoted[key]) {
-            mediaMessage = quoted[key];
-            mediaType = mediaTypes[key];
-            break;
-          }
-        }
-      }
-
-      // NO MEDIA
-      if (!mediaMessage) {
-        return sock.sendMessage(
-          m.chat,
-          {
-            text: `📸 *${BOT_NAME}*
-
-Réponds à :
-
-• image
-• vidéo
-• audio
-• sticker
-• document
-
-pour générer un lien.`
-          },
-          { quoted: m }
-        );
-      }
-
-      await sock.sendPresenceUpdate('composing', m.chat);
-
-      // DOWNLOAD MEDIA
-      const stream = await downloadContentFromMessage(mediaMessage, mediaType);
-      const chunks = [];
-
-      for await (const chunk of stream) {
-        chunks.push(chunk);
-      }
-
-      const buffer = Buffer.concat(chunks);
-
-      // ❌ FIX IMPORTANT
-      if (!buffer || buffer.length < 100) {
-        throw new Error('Média invalide ou téléchargement échoué');
-      }
-
-      // MIME TYPE
-      let mimetype = mediaMessage?.mimetype || '';
-
-      if (mediaType === 'image' && !mimetype) {
-        mimetype = 'image/jpeg';
-      }
-
-      if (mediaType === 'document' && !mimetype) {
-        mimetype = 'application/octet-stream';
-      }
-
-      // EXTENSION
-      let ext = 'bin';
-
-      if (mimetype.includes('png')) ext = 'png';
-      else if (mimetype.includes('jpeg')) ext = 'jpg';
-      else if (mimetype.includes('jpg')) ext = 'jpg';
-      else if (mimetype.includes('webp')) ext = 'webp';
-      else if (mimetype.includes('gif')) ext = 'gif';
-      else if (mimetype.includes('mp4')) ext = 'mp4';
-      else if (mimetype.includes('webm')) ext = 'webm';
-      else if (mimetype.includes('ogg')) ext = 'ogg';
-      else if (mimetype.includes('mpeg') || mimetype.includes('mp3')) ext = 'mp3';
-      else if (mimetype.includes('pdf')) ext = 'pdf';
-
-      // TEMP FILE
-      const tempPath = path.join(os.tmpdir(), `catbox_${Date.now()}.${ext}`);
-      fs.writeFileSync(tempPath, buffer);
-
-      // UPLOAD CATBOX
-      const form = new FormData();
-      form.append('reqtype', 'fileupload');
-      form.append('fileToUpload', fs.createReadStream(tempPath));
-
-      const response = await axios.post(
-        'https://catbox.moe/user/api.php',
-        form,
-        {
-          headers: {
-            ...form.getHeaders(),
-            'User-Agent': 'Mozilla/5.0'
-          },
-          maxBodyLength: Infinity,
-          maxContentLength: Infinity,
-          timeout: 120000
-        }
-      );
-
-      // CLEAN TEMP FILE
-      try {
-        fs.unlinkSync(tempPath);
-      } catch {}
-
-      const url = String(response.data).trim();
-
-      if (!url.startsWith('https://')) {
-        throw new Error('Lien invalide Catbox');
-      }
-
-      await sock.sendMessage(
-        m.chat,
-        {
-          text: buildMediaLinkMessage(url)
-        },
-        { quoted: m }
-      );
-
-    } catch (err) {
-
-      console.error('❌ URL command error:', err?.response?.data || err);
-
-      let msg = `❌ *${BOT_NAME}*\n\nErreur upload média.`;
-
-      if (
-        err.code === 'ECONNABORTED' ||
-        err.code === 'ETIMEDOUT' ||
-        err.code === 'ECONNREFUSED'
-      ) {
-        msg = `❌ *${BOT_NAME}*\n\nCatbox indisponible.\nRéessaie plus tard.`;
-      }
-
-      else if (err.response?.status === 413) {
-        msg = `❌ *${BOT_NAME}*\n\nFichier trop volumineux (>20MB).`;
-      }
-
-      else if (err.message.includes('Média invalide')) {
-        msg = `❌ *${BOT_NAME}*\n\nImpossible de lire ce média (viewOnce ou fichier corrompu).`;
-      }
-
-      await sock.sendMessage(
-        m.chat,
-        { text: msg },
-        { quoted: m }
-      );
     }
-  }
 };
