@@ -1,61 +1,74 @@
-import config from '../config.js';
-import { BOT_NAME, sendWithBotImage } from '../system/botAssets.js';
+import fs from 'fs';
+import path from 'path';
+import { getBotImage, getBotName } from '../system/botAssets.js';
 
 function formatUptime(seconds) {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  return `${h}h ${m}m ${s}s`;
+const h = Math.floor(seconds / 3600);
+const m = Math.floor((seconds % 3600) / 60);
+const s = Math.floor(seconds % 60);
+
+return "${h}h ${m}m ${s}s";
 }
 
 export default {
-  name: 'ping',
-  aliases: [],
-  category: 'General',
-  description: '🏓 Check bot latency and status',
-  ownerOnly: false,
-  group: false,
+name: 'ping',
+aliases: [],
+category: 'General',
+description: '🏓 Check bot latency and status',
+ownerOnly: false,
+group: false,
 
-  run: async (kaya, m) => {
-    try {
-      const start = Date.now();
+run: async (kaya, m) => {
+try {
+const start = Date.now();
+const latency = Date.now() - start;
+const uptime = formatUptime(process.uptime());
 
-      await kaya.sendMessage(m.chat, { text: '🏓 Pong...' }, { quoted: m });
+  let thumbnailBuffer;
+  const botImage = getBotImage();
 
-      const latency = Date.now() - start;
-      const uptime = formatUptime(process.uptime());
-      const mode = config.public ? 'PUBLIC' : 'PRIVATE';
+  if (botImage?.type === 'buffer') {
+    thumbnailBuffer = botImage.value;
+  }
 
-      const message = `
-╔═━────────────━═╗
-       ${BOT_NAME}
-╚═━────────────━═╝
+  if (!thumbnailBuffer) {
+    const localPath = path.join(process.cwd(), 'system', 'bot.jpg');
 
-⚡ Status   : Online & Ready
-⏱️ Latency  : ${latency} ms
-⌛ Uptime   : ${uptime}
-🔓 Mode     : ${mode}
-
-══════════════════
-      `.trim();
-
-      await sendWithBotImage(
-        kaya,
-        m.chat,
-        {
-          caption: message,
-          contextInfo: { mentionedJid: [m.sender] }
-        },
-        { quoted: m }
-      );
-
-    } catch (err) {
-      console.error('❌ ping.js error:', err);
-      await kaya.sendMessage(
-        m.chat,
-        { text: '⚠️ Unable to check latency. Please try again.' },
-        { quoted: m }
-      );
+    if (fs.existsSync(localPath)) {
+      thumbnailBuffer = fs.readFileSync(localPath);
     }
   }
+
+  const externalAdReply = {
+    title: `🏓 PONG • ${latency}ms`,
+    body: `${getBotName()} • ⏳ ${uptime}`,
+    mediaType: 1,
+    renderLargerThumbnail: true,
+    showAdAttribution: false,
+    thumbnail: thumbnailBuffer
+  };
+
+  await kaya.sendMessage(
+    m.chat,
+    {
+      text: '🏓',
+      contextInfo: {
+        externalAdReply,
+        mentionedJid: [m.sender]
+      }
+    },
+    { quoted: m }
+  );
+
+} catch (err) {
+  console.error('❌ ping.js error:', err);
+
+  await kaya.sendMessage(
+    m.chat,
+    { text: '⚠️ Unable to check latency.' },
+    { quoted: m }
+  );
+}
+
+}
 };
