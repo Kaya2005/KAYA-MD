@@ -18,7 +18,7 @@ const botNameFile = path.join(process.cwd(), 'system', 'botName.json');
 const botImageFile = path.join(process.cwd(), 'system', 'botImage.json');
 
 // Default bot name
-export let BOT_NAME = '⸢🧸𝛆፝͠⋆꯭꯭꯭᪳᪳𝗘𝗟𝗜𝗝𝗔𝗛🫧 𝐁𝐎𝐓';
+export let BOT_NAME = '𝐊𝐀𝐘𝐀 𝐁𝐎𝐓';
 
 // Default bot image (URL)
 let botImagePath = 'https://files.catbox.moe/1ddhgm.jpg';
